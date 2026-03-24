@@ -40,7 +40,7 @@ class SqlAlchemyRepository(Generic[T]):
 
     Note: this class does NOT subclass IRepository directly; the concrete
     subclasses below do (they inherit from this AND from the matching
-    interface). This is the standard "implementation + interface" combo.
+    interface).
     """
 
     model: Type[T]

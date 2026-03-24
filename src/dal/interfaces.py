@@ -2,10 +2,7 @@
 DAL — abstract interfaces.
 
 The lab requires that the Business Logic Layer depend on *interfaces*, not
-on concrete implementations. In Python the idiomatic way to express an
-"interface" is via `abc.ABC` with `@abstractmethod`. Anything in the BLL
-will type-hint these abstract classes; the composition root (DI container)
-provides the concrete implementations.
+on concrete implementations.
 
 Contents:
     - Repository protocols (one per aggregate root + association tables)
@@ -35,7 +32,7 @@ T = TypeVar("T")
 # Repository contracts                                                        #
 # --------------------------------------------------------------------------- #
 class IRepository(ABC, Generic[T]):
-    """Common shape every repository implements."""
+    """Dummies shape every repository implements."""
 
     @abstractmethod
     def add(self, entity: T) -> T: ...
@@ -120,7 +117,7 @@ class IUnitOfWork(ABC):
 # --------------------------------------------------------------------------- #
 class CsvRecord:
     """
-    A loose, typed-attribute view of a CSV row.
+    A typed-attribute view of a CSV row.
 
     Each header column becomes an attribute on the instance. Empty
     strings are normalized to `None` by the reader so that downstream
