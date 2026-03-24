@@ -1,7 +1,5 @@
 """
 BLL — DataImportService.
-
-This is the only "smart" piece of code in the application:
     1. Asks the DAL (via interface) to read CSV rows.
     2. Groups rows by record_type and inserts them in an order that
        respects foreign-key dependencies:
@@ -12,8 +10,7 @@ This is the only "smart" piece of code in the application:
     4. Wraps the whole thing in a single Unit of Work transaction —
        a failure mid-import rolls back cleanly.
 
-The service depends on `ICsvDataReader` and `IUnitOfWork` only; it
-never imports a concrete class. That's how IoC + DI are realized.
+The service depends on `ICsvDataReader` and `IUnitOfWork` only.
 """
 from __future__ import annotations
 

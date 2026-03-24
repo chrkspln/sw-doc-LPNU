@@ -2,8 +2,8 @@
 DAL — Unit of Work implementation.
 
 Wraps a SQLAlchemy session and exposes one repository per aggregate.
-Used as a context manager so the lifecycle (open session → use repos →
-commit or rollback → close session) is enforced by the language itself.
+Used as a context manager to ensure 'open session → use repos →
+commit or rollback → close session' lifecycle of a repo.
 """
 from __future__ import annotations
 

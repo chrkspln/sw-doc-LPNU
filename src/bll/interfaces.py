@@ -1,9 +1,6 @@
 """
 BLL — service interfaces.
 
-The presentation layer (currently empty per the lab spec) would depend
-on these abstractions, never on `DataImportService` directly. This is
-the same dependency-inversion principle that the BLL applies to the DAL.
 """
 from __future__ import annotations
 
