@@ -1,4 +1,4 @@
-# Lab 2 - Three-Layer Server Application
+# Lab 2 — Three-Layer Server Application
 
 A Python implementation of a three-layered project-planning server based on
 the class diagram from Lab 1.b. The application reads project data from a
@@ -10,7 +10,7 @@ concrete classes implement the abstractions they depend on) and
 **Dependency Injection** (the wiring between abstract and concrete is done
 in one place — the composition root — and passed in through constructors).
 
-## Structure
+## What's in here
 
 ```
 lab2/
@@ -54,7 +54,7 @@ Import the CSV into a fresh SQLite database:
 python -m src.main --csv data/project_data.csv --clear
 ```
 
-There will be a report like:
+You should see a report like:
 ```
 ImportReport(projects=30, tasks=360, resources=65, assignments=341,
              dependencies=182, calendars=30, baselines=69,
@@ -95,7 +95,7 @@ It only ever touches `dal/interfaces.py`. The same goes for the
 
 Concrete wiring lives in exactly one place: `src/di/container.py`. Swapping
 SQLite for PostgreSQL, or the CSV reader for a JSON reader, would only
-require changes there.
+require changes there. This is the practical payoff of IoC + DI.
 
 ## Data Access Layer (DAL)
 
@@ -130,6 +130,9 @@ with self._uow as uow:
     uow.commit()
 ```
 
+If anything fails between `__enter__` and `commit`, the rollback is
+automatic.
+
 The `CsvDataReader` is intentionally minimal — it streams rows out of
 the file as `CsvRecord` objects with attribute access. All parsing
 (string-to-date, string-to-bool, string-to-int) happens in the BLL,
@@ -145,7 +148,8 @@ class DataImportService(IDataImportService):
     def __init__(self, csv_reader: ICsvDataReader, uow: IUnitOfWork): ...
 ```
 
-It never imports `CsvDataReader` or `SqlAlchemyUnitOfWork`.
+It never imports `CsvDataReader` or `SqlAlchemyUnitOfWork`. That's the
+operational definition of "depends on interfaces, not implementations."
 
 The import flow is:
 
@@ -175,6 +179,10 @@ interfaces. They describe what controllers and views *would* look like
 in a real UI: methods like `display_project_list`, `import_csv`,
 `show_tasks_for_project`. None are instantiated.
 
+A real implementation (a Flask route, a CLI menu, a desktop GUI) would
+inject `IDataImportService` and other BLL services through the same
+container that wires everything else.
+
 ## CSV file format
 
 The file is a single CSV with a wide column set. Each row represents
@@ -200,6 +208,10 @@ The generator at `scripts/generate_csv.py` produces a deterministic file
 (seed-controlled) with at least 1000 rows distributed across all record
 types.
 
+## What to highlight when defending this work
+
+The two patterns the lab asks for are visible in two places.
+
 **Inversion of Control** is shown by the import direction: `bll/services.py`
 imports from `dal/interfaces.py` but never from `dal/repositories.py`,
 `dal/csv_reader.py`, or `dal/unit_of_work.py`. The high-level module
@@ -213,3 +225,7 @@ itself. The `Container` class in `di/container.py` is where the choice
 of which concrete class to inject is finally made — and it's the only
 place in the codebase where concrete DAL classes are imported alongside
 their abstractions.
+
+The Unit of Work and Repository patterns are bonus-points territory:
+they're not strictly required by the lab text but they're standard for
+ORM-backed applications and demonstrate mature design thinking.

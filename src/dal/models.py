@@ -1,7 +1,7 @@
 """
 DAL — ORM models.
 
-SQLAlchemy mapping of the entities from the class
+These classes are the SQLAlchemy mapping of the entities from the class
 diagram produced in Lab 1.b (Microsoft Project plan creation):
 
     Project, Task, Milestone, SummaryTask, Resource, HumanResource,

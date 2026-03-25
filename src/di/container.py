@@ -1,6 +1,18 @@
 """
 Dependency Injection — composition root.
 
+This is the *only* place where the application stitches concrete classes
+together. Every other module imports interfaces and receives concrete
+instances through its constructor (constructor injection).
+
+Why is this the "composition root"?
+    Because changing any wiring decision — swapping SQLite for Postgres,
+    the CSV reader for a JSON reader, or `DataImportService` for a
+    different orchestration strategy — only affects this one file.
+
+This Container uses simple manual DI rather than a third-party DI library.
+That is intentional: the patterns (Inversion of Control, Dependency
+Injection) are easier to see when no framework magic is hiding them.
 """
 from __future__ import annotations
 
@@ -29,7 +41,7 @@ class Container:
         return SqlAlchemyUnitOfWork(self._session_factory)
 
     def data_import_service(self) -> IDataImportService:
-        # Constructor injection: BLL gets DAL abstractions.
+        # Constructor injection: BLL gets DAL abstractions, never concretes.
         return DataImportService(
             csv_reader=self.csv_reader(),
             uow=self.unit_of_work(),
