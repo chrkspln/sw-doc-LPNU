@@ -1,9 +1,14 @@
 """
 Presentation layer — interfaces only.
 
-Describes what controllers/views *would* do in a future iteration;
-they are not instantiated anywhere.
+The lab specifies that the presentation layer currently performs no logic
+and is represented purely by interfaces. These interfaces describe what
+controllers/views *would* do in a future iteration; they are not
+instantiated anywhere in this lab.
 
+A typical web/desktop UI implementation would inject the BLL services
+(via the same DI container that wires the rest of the app) and translate
+HTTP requests / button clicks into service calls.
 """
 from __future__ import annotations
 
@@ -32,7 +37,7 @@ class IImportView(ABC):
 
 
 # --------------------------------------------------------------------------- #
-# Controllers                                                                 #
+# Controllers (would coordinate views + BLL services in a real UI)            #
 # --------------------------------------------------------------------------- #
 class IProjectController(ABC):
     @abstractmethod
