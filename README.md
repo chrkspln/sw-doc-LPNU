@@ -4,8 +4,7 @@ A Python implementation of a three-layered project-planning server based on
 the class diagram from Lab 1.b. The application reads project data from a
 single CSV file and persists it to a relational database through an ORM.
 
-The codebase is structured around two design patterns the lab explicitly
-asks for: **Inversion of Control** (high-level modules don't know which
+The codebase is structured around two design patterns: **Inversion of Control** (high-level modules don't know which
 concrete classes implement the abstractions they depend on) and
 **Dependency Injection** (the wiring between abstract and concrete is done
 in one place — the composition root — and passed in through constructors).
@@ -54,7 +53,7 @@ Import the CSV into a fresh SQLite database:
 python -m src.main --csv data/project_data.csv --clear
 ```
 
-You should see a report like:
+There will be a report like:
 ```
 ImportReport(projects=30, tasks=360, resources=65, assignments=341,
              dependencies=182, calendars=30, baselines=69,
@@ -88,14 +87,14 @@ reference lower layers only through abstractions:
                                                        composition root
 ```
 
-The arrows are deliberate: the BLL never imports anything from
+BLL never imports anything from
 `dal/repositories.py`, `dal/csv_reader.py`, or `dal/unit_of_work.py`.
 It only ever touches `dal/interfaces.py`. The same goes for the
 (currently empty) presentation layer — it would only see `bll/interfaces.py`.
 
 Concrete wiring lives in exactly one place: `src/di/container.py`. Swapping
 SQLite for PostgreSQL, or the CSV reader for a JSON reader, would only
-require changes there. This is the practical payoff of IoC + DI.
+require changes there.
 
 ## Data Access Layer (DAL)
 
@@ -174,14 +173,10 @@ service translates them to real IDs at insert time.
 
 ## Presentation Layer
 
-Per the lab specification, the presentation layer contains only
+The presentation layer contains only
 interfaces. They describe what controllers and views *would* look like
 in a real UI: methods like `display_project_list`, `import_csv`,
 `show_tasks_for_project`. None are instantiated.
-
-A real implementation (a Flask route, a CLI menu, a desktop GUI) would
-inject `IDataImportService` and other BLL services through the same
-container that wires everything else.
 
 ## CSV file format
 
@@ -208,9 +203,7 @@ The generator at `scripts/generate_csv.py` produces a deterministic file
 (seed-controlled) with at least 1000 rows distributed across all record
 types.
 
-## What to highlight when defending this work
-
-The two patterns the lab asks for are visible in two places.
+### The two patterns are visible in two places
 
 **Inversion of Control** is shown by the import direction: `bll/services.py`
 imports from `dal/interfaces.py` but never from `dal/repositories.py`,
@@ -225,7 +218,3 @@ itself. The `Container` class in `di/container.py` is where the choice
 of which concrete class to inject is finally made — and it's the only
 place in the codebase where concrete DAL classes are imported alongside
 their abstractions.
-
-The Unit of Work and Repository patterns are bonus-points territory:
-they're not strictly required by the lab text but they're standard for
-ORM-backed applications and demonstrate mature design thinking.
