@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Projects{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb"><a href="{{ url_for('home.index') }}">Dashboard</a> · Projects</div>
+  <h1 class="page-title">Projects <span class="count-badge">{{ projects|length }}</span></h1>
+
+  <div class="toolbar">
+    <form class="filter-form" method="get" action="{{ url_for('projects.list_projects') }}">
+      <input type="search" name="q" value="{{ search }}" placeholder="Search by name…" class="input">
+      <select name="status" class="input">
+        <option value="">All statuses</option>
+        {% for s in statuses %}
+          <option value="{{ s }}" {% if current_status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-ghost" type="submit">Filter</button>
+      {% if search or current_status %}
+        <a class="btn btn-text" href="{{ url_for('projects.list_projects') }}">Clear</a>
+      {% endif %}
+    </form>
+    <a class="btn btn-primary" href="{{ url_for('projects.new_project_form') }}">+ New project</a>
+  </div>
+</header>
+
+{% if projects %}
+<div class="data-card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="col-name">Name</th>
+        <th>Status</th>
+        <th class="num">Tasks</th>
+        <th class="num">Assignments</th>
+        <th>Start</th>
+        <th>End</th>
+        <th class="actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in projects %}
+        <tr>
+          <td class="col-name">
+            <a class="row-title" href="{{ url_for('projects.show_project', project_id=p.id) }}">{{ p.name }}</a>
+            {% if p.ext_id %}<span class="row-ext">{{ p.ext_id }}</span>{% endif %}
+          </td>
+          <td><span class="pill {{ p.status|status_class }}">{{ p.status }}</span></td>
+          <td class="num mono">{{ p.task_count }}</td>
+          <td class="num mono">{{ p.assignment_count }}</td>
+          <td class="mono">{{ p.start_date.isoformat() if p.start_date else '—' }}</td>
+          <td class="mono">{{ p.end_date.isoformat() if p.end_date else '—' }}</td>
+          <td class="actions">
+            <a class="btn btn-text" href="{{ url_for('projects.edit_project_form', project_id=p.id) }}">Edit</a>
+            <form class="inline-form" method="post" action="{{ url_for('projects.delete_project', project_id=p.id) }}"
+                  onsubmit="return confirm('Delete project {{ p.name|e }}? This removes all its tasks and assignments.');">
+              <button class="btn btn-text btn-danger" type="submit">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="empty">
+    <p>No projects match your filters.</p>
+    <a class="btn btn-primary" href="{{ url_for('projects.new_project_form') }}">Create the first project</a>
+  </div>
+{% endif %}
+{% endblock %}

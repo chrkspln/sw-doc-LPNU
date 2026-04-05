@@ -1,220 +1,211 @@
-# Lab 2 — Three-Layer Server Application
+# Lab 3 — MVC Web Application for Project Planning
 
-A Python implementation of a three-layered project-planning server based on
-the class diagram from Lab 1.b. The application reads project data from a
-single CSV file and persists it to a relational database through an ORM.
+A Flask-based web application that lets a user view, create, edit and delete
+project-planning data through a browser. The application is built on top of
+the three-layered server from Lab 2 — the DAL and the business-logic services
+are reused unchanged, and a new presentation layer (Flask routes + Jinja2
+templates) is layered on top.
 
-The codebase is structured around two design patterns: **Inversion of Control** (high-level modules don't know which
-concrete classes implement the abstractions they depend on) and
-**Dependency Injection** (the wiring between abstract and concrete is done
-in one place — the composition root — and passed in through constructors).
-
-## What's in here
-
-```
-lab2/
-├── requirements.txt
-├── data/
-│   └── project_data.csv               ← generated, 1000+ rows, all data types
-├── scripts/
-│   └── generate_csv.py                ← CLI module that creates the CSV
-└── src/
-    ├── main.py                        ← application entry point
-    ├── dal/                           ← Data Access Layer
-    │   ├── interfaces.py              ← abstract contracts (IRepository, IUnitOfWork, ICsvDataReader)
-    │   ├── models.py                  ← SQLAlchemy ORM mappings
-    │   ├── repositories.py            ← concrete repository implementations
-    │   ├── unit_of_work.py            ← UoW wrapper around a SQLAlchemy session
-    │   ├── csv_reader.py              ← CSV file reader
-    │   └── database.py                ← engine + sessionmaker factory
-    ├── bll/                           ← Business Logic Layer
-    │   ├── interfaces.py              ← service contracts (IDataImportService) + ImportReport
-    │   └── services.py                ← DataImportService — orchestrates the import flow
-    ├── presentation/                  ← Presentation Layer (interfaces only, per spec)
-    │   └── interfaces.py
-    └── di/
-        └── container.py               ← composition root — the only place concretes meet
-```
+The domain comes from Lab 1, variant 27: project-plan creation in the style
+of Microsoft Project. The class diagram from that lab is what the database
+schema is mapped from, and the use-case diagram is what the controllers
+implement.
 
 ## How to run it
 
-Install SQLAlchemy:
+Install both SQLAlchemy and Flask:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-Generate the CSV (≥ 1000 rows, deterministic with `--seed`):
+Generate the test data (a deterministic CSV with around 1077 rows covering
+every entity type), then load it into a fresh SQLite database:
+
 ```bash
-python -m scripts.generate_csv --output data/project_data.csv --projects 30
+python -m scripts.generate_csv --output data/project_data.csv
+python -m src.main import --csv data/project_data.csv --clear
 ```
 
-Import the CSV into a fresh SQLite database:
+Start the web server:
+
 ```bash
-python -m src.main --csv data/project_data.csv --clear
+python -m src.main web --port 5000
 ```
 
-There will be a report like:
-```
-ImportReport(projects=30, tasks=360, resources=65, assignments=341,
-             dependencies=182, calendars=30, baselines=69,
-             skipped=0, errors=0)
-Total entities created: 1077
-```
+Open `http://127.0.0.1:5000/` in a browser. You will land on the dashboard,
+which shows aggregate counts of projects, tasks, resources and assignments
+broken down by their status or type. From there the sidebar leads to the
+projects list (full CRUD), and to the resources catalog (read-only).
 
-Inspect the database with any SQLite client, or with one-liners like:
-```bash
-sqlite3 project_planning.db "SELECT task_type, COUNT(*) FROM tasks GROUP BY task_type;"
-```
-
-## How the three layers fit together
-
-The three layers form a strict one-way dependency chain. Higher layers
-reference lower layers only through abstractions:
+## Project layout
 
 ```
-   Presentation  ──depends on──▶  BLL interfaces
-                                       ▲
-                                       │ (concretes wired in di/container.py)
-                                       │
-                          BLL services ┘
-                                       │
-                                       ▼
-                                  DAL interfaces  ◀──depends on──┐
-                                       ▲                          │
-                                       │                          │
-                          DAL repositories + UoW + CSV reader     │
-                                                                  │
-                                                       composition root
+lab3/
+├── requirements.txt
+├── data/project_data.csv                 ← generated, ~1077 rows
+├── scripts/generate_csv.py               ← CLI test-data generator
+└── src/
+    ├── main.py                           ← `import` + `web` subcommands
+    ├── dal/                              ← Data Access Layer (from Lab 2)
+    │   ├── interfaces.py                 ← IRepository, IUnitOfWork, ICsvDataReader
+    │   ├── models.py                     ← SQLAlchemy ORM mappings
+    │   ├── repositories.py               ← concrete repos
+    │   ├── unit_of_work.py
+    │   ├── csv_reader.py
+    │   └── database.py
+    ├── bll/                              ← Business Logic Layer
+    │   ├── interfaces.py                 ← IDataImportService, IProjectService,
+    │   │                                    ITaskService, IResourceService, IStatsService
+    │   ├── dto.py                        ← plain dataclasses passed to controllers
+    │   └── services.py                   ← concrete services (uow_factory pattern)
+    ├── presentation/                     ← Lab 3 — the new layer
+    │   ├── interfaces.py                 ← (kept from Lab 2 — view/controller contracts)
+    │   ├── app.py                        ← Flask app factory
+    │   ├── controllers/                  ← blueprints = the "Controller" of MVC
+    │   │   ├── home.py                   ← GET / (dashboard)
+    │   │   ├── projects.py               ← full CRUD on the main entity
+    │   │   ├── tasks.py                  ← CRUD on Tasks within a Project
+    │   │   └── resources.py              ← read-only resource views
+    │   ├── templates/                    ← Jinja2 = the "View" of MVC
+    │   │   ├── base.html, home.html
+    │   │   ├── projects/list.html, detail.html, form.html
+    │   │   ├── tasks/form.html
+    │   │   └── resources/list.html, detail.html
+    │   └── static/style.css
+    └── di/container.py                   ← composition root (extended)
 ```
 
-BLL never imports anything from
-`dal/repositories.py`, `dal/csv_reader.py`, or `dal/unit_of_work.py`.
-It only ever touches `dal/interfaces.py`. The same goes for the
-(currently empty) presentation layer — it would only see `bll/interfaces.py`.
+## Mapping the lab requirements onto the code
 
-Concrete wiring lives in exactly one place: `src/di/container.py`. Swapping
-SQLite for PostgreSQL, or the CSV reader for a JSON reader, would only
-require changes there.
 
-## Data Access Layer (DAL)
+**Requirement 1: choose the main entity.** The main entity is **Project**.
+Every other domain object — tasks, milestones, summary tasks, calendars,
+baselines, assignments — exists in the context of a project. In the Lab 1
+class diagram, Project is the aggregate root that owns all other entities
+through composition relationships. Picking it as the main entity for Lab 3
+means the URL hierarchy becomes natural (`/projects/`, `/projects/<id>`,
+`/projects/<id>/tasks/new`) and the CRUD requirement applies to it
+directly. Resources are organisation-wide and don't belong to any single
+project, which is why they get a separate top-level menu item but only
+read-only screens.
 
-The DAL has three responsibilities: define the database schema (via the ORM),
-provide CRUD-style access to that schema (repositories under a unit of work),
-and read records from the input CSV.
+**Requirement 2: controllers and action methods.** Each blueprint in
+`src/presentation/controllers/` is a controller in the MVC sense — a
+group of action methods (route handlers) that orchestrate the response
+to an HTTP request. The projects controller has seven action methods
+covering the full lifecycle: `list_projects`, `show_project`,
+`new_project_form`, `create_project`, `edit_project_form`,
+`update_project`, `delete_project`. The tasks controller mirrors the
+same shape for nested task management. The home controller has one
+action method that builds a dashboard. Each method takes whatever URL
+parameters apply, asks a BLL service for data, and either renders a
+template or issues an HTTP redirect.
 
-The ORM mappings in `models.py` follow the class diagram from Lab 1 directly.
-The `Task` and `Resource` hierarchies use **single-table inheritance**, where
-all subclasses share one table and a discriminator column (`task_type`,
-`resource_type`) tells SQLAlchemy which Python class to instantiate. The
-choice was made for simplicity — joined-table inheritance would scatter
-each hierarchy across multiple tables and complicate the demo without
-adding clarity. `Assignment` is its own table because it's the
-**association class** linking Task and Resource, carrying its own data
-(`units`, `work`, `actual_work`, `cost`).
+**Requirement 3: model that interacts with the database, populated with
+test data.** The "Model" of MVC is split across the DAL and BLL in this
+codebase, which matches the lab text: the lab says "the model describes
+the data logic and interacts with the database," which is exactly what
+the DAL plus the services do together. The DAL holds the ORM mappings
+and the persistence primitives; the BLL holds the use cases and exposes
+the model to controllers through service interfaces. The database is
+populated by the Lab 2 import pipeline — a CSV with around 1077 rows
+covering every record type goes through the same `DataImportService`
+that Lab 2 demonstrated.
 
-The repositories in `repositories.py` all share one generic base
-(`SqlAlchemyRepository[T]`) and only differ in the model they manage.
-This avoids hand-written `add` / `get` / `list` methods on every repo
-and keeps the codebase compact.
+**Requirement 4: ability to add, edit and delete data.** Projects and
+tasks both support full CRUD through the web UI. Creating a project is
+a two-step flow — `GET /projects/new` renders the form, `POST /projects/`
+handles the submission, validates the inputs, calls
+`IProjectService.create_project`, flashes a success message, and
+redirects to the new project's detail page. Editing follows the same
+pattern with `GET/POST /projects/<id>/edit`. Deletion is a `POST` to
+`/projects/<id>/delete` guarded by a JavaScript confirm dialog. SQLAlchemy
+takes care of cascading the delete to the project's tasks, calendars,
+baselines and assignments — that's a `cascade="all, delete-orphan"`
+declaration on the Project model from Lab 2. Tasks have their own CRUD
+flow nested under a project.
 
-The `SqlAlchemyUnitOfWork` is a context manager that owns one SQLAlchemy
-`Session` and exposes one repository per aggregate. It commits on
-successful exit and rolls back on exception — a standard pattern that
-makes transactional boundaries explicit. The BLL uses it like this:
+**Requirement 5: data displayed via Views as HTML pages.** The Jinja2
+templates in `templates/` are the "View" of MVC. Each one inherits from
+`base.html` (which provides the sidebar layout, flash-message stack and
+navigation) and fills the `content` block. Templates only know how to
+display DTOs — they never see SQLAlchemy entities, never query the
+database, and contain no business logic beyond simple presentational
+choices like which CSS class to apply for a given status pill. A handful
+of custom Jinja2 filters in `presentation/app.py` (`status_class`,
+`task_type_label`, `percent`, `money`) keep the templates tidy.
 
-```python
-with self._uow as uow:
-    uow.projects.add(project)
-    uow.tasks.add(task)
-    uow.commit()
-```
+**Requirement 6: data is read using business-logic-layer classes.** This
+is the requirement that drove the most architectural decisions. Every
+controller depends only on BLL service interfaces — the projects
+controller declares its dependencies as `IProjectService` and
+`ITaskService`, never on `ProjectRepository` or any DAL class. You can
+verify this by grepping the controllers for any `from ...dal` import:
+there are none. The controllers receive their service interfaces through
+factory functions (`create_projects_blueprint(project_service, task_service)`)
+which act as constructor injection across the closure boundary. The
+container in `src/di/container.py` is the only place where concrete
+service classes are imported and instantiated.
 
-If anything fails between `__enter__` and `commit`, the rollback is
-automatic.
+## Architecture notes
+Lab 1 produced the diagrams; Lab 2
+implemented the DAL and BLL with the IoC and DI patterns; Lab 3 added a
+presentation layer on top without changing anything below it.
 
-The `CsvDataReader` is intentionally minimal — it streams rows out of
-the file as `CsvRecord` objects with attribute access. All parsing
-(string-to-date, string-to-bool, string-to-int) happens in the BLL,
-not the DAL, because parsing is business logic, not data access.
+The **dependency direction is strictly inward**. Templates depend on
+controllers, controllers depend on BLL service interfaces, services
+depend on DAL interfaces, and the DAL depends on nothing in the
+application — just SQLAlchemy. The arrow always points from concrete
+to abstract, from outer to inner. The composition root in
+`src/di/container.py` is where the abstractions get bound to concrete
+implementations, and it is the only file that imports both an interface
+and its implementation.
 
-## Business Logic Layer (BLL)
+The **services were refactored from holding a UoW instance to receiving
+a UoW factory** when Lab 3 came in. In Lab 2 each service got a single
+`IUnitOfWork`; that worked because the import was a one-shot CLI
+operation. Web requests are concurrent, so each public method now opens
+its own `with self._uow_factory() as uow:` block. This guarantees one
+fresh database session per request and avoids the entire class of bugs
+where two requests share a session and stomp on each other's
+transactions.
 
-The BLL has one service: `DataImportService`. Its constructor takes two
-abstractions:
+The **DTOs in `bll/dto.py` decouple the templates from the ORM**. A
+template that renders a project detail page sees a `ProjectDetailDto`
+with simple Python-typed fields (`int`, `str`, `date`, `List[TaskDto]`)
+— it never holds a live SQLAlchemy entity, so it can't accidentally
+trigger a lazy-load query while rendering, and it doesn't need an open
+session to work with. This separation is the practical reason Lab 3
+templates are so simple.
 
-```python
-class DataImportService(IDataImportService):
-    def __init__(self, csv_reader: ICsvDataReader, uow: IUnitOfWork): ...
-```
+**Single-table inheritance for Task and Resource.** Both hierarchies
+share one table with a discriminator column (`task_type`,
+`resource_type`). It keeps the schema readable and the queries simple.
+The trade-off — that subclass-specific columns are nullable on the
+shared table — is acceptable here because the subtype set is small and
+fixed. A Microsoft-Project-style domain doesn't need a Resource subtype
+explosion. In the task form the type selector is disabled when editing
+an existing task, because changing inheritance type after creation
+would leave subclass fields in an inconsistent state.
 
-It never imports `CsvDataReader` or `SqlAlchemyUnitOfWork`. That's the
-operational definition of "depends on interfaces, not implementations."
+**Manual DI without a framework.** I picked plain constructor injection
+through closures because the lab is grading the *patterns* — IoC and DI
+— and a third-party DI library would hide them behind decorators. Every
+"service depends on an abstraction" wiring decision is visible in
+`container.py` in plain Python.
 
-The import flow is:
+**Why a separate dashboard.** The lab text says the application
+visualises data on user request. A dashboard with aggregate counts
+(`StatsService` calls `IUnitOfWork.list_all` on every aggregate and
+groups by status/type) shows the data layer is wired up correctly and
+gives the user a single entry point that summarises the whole system.
 
-1. Read all CSV rows up front (we need multiple passes for foreign-key
-   resolution — a Task referencing a SummaryTask might come before its
-   parent in the file).
-2. Group rows by `record_type`.
-3. Insert in an order that respects foreign keys:
-   `Project → Calendar/Baseline → Resource → SummaryTask → Task →
-   Milestone → Dependency → Assignment`.
-4. Maintain in-memory lookup tables (`ext_id → primary_key`) so that
-   later rows resolve their parent IDs without re-querying the database.
-5. Wrap everything in a single Unit-of-Work transaction so a failure
-   anywhere rolls back the whole import.
+**Why resources are read-only.** Resources are an organisation-wide pool
+that, in a real system, would be managed by HR or procurement, not
+inside a project plan. A read-only catalogue plus a detail page is
+enough to show that the assignment tables resolve correctly and that
+the `Resource` polymorphism is rendered properly (each subtype shows
+its own fields — humans show role and skills, materials show unit and
+consumption rate, cost resources show fixed cost).
 
-The CSV uses a single wide schema where each row's columns mean different
-things depending on its `record_type`. Cross-references between records
-use **external IDs** (`ext_id`) rather than database primary keys — the
-CSV doesn't know the auto-incremented IDs SQLAlchemy will assign, so it
-uses its own naming scheme (`PR001`, `T012_R3`, `RH024`, etc.) and the
-service translates them to real IDs at insert time.
-
-## Presentation Layer
-
-The presentation layer contains only
-interfaces. They describe what controllers and views *would* look like
-in a real UI: methods like `display_project_list`, `import_csv`,
-`show_tasks_for_project`. None are instantiated.
-
-## CSV file format
-
-The file is a single CSV with a wide column set. Each row represents
-one entity, and the `record_type` column tells the service which entity
-kind to build. Most columns are optional and only filled in when
-relevant to that record type.
-
-| record_type        | required columns (besides record_type, ext_id, name)                |
-| ------------------ | ------------------------------------------------------------------- |
-| `PROJECT`          | start_date                                                          |
-| `CALENDAR`         | project_ext_id                                                      |
-| `BASELINE`         | project_ext_id, saved_date                                          |
-| `HUMAN_RESOURCE`   | code; optionally email, role, skills, cost_per_hour, max_units      |
-| `MATERIAL_RESOURCE`| code, unit, consumption_rate                                        |
-| `COST_RESOURCE`    | code, fixed_cost                                                    |
-| `SUMMARY_TASK`     | project_ext_id                                                      |
-| `TASK`             | project_ext_id; optionally summary_ext_id                           |
-| `MILESTONE`        | project_ext_id                                                      |
-| `DEPENDENCY`       | predecessor_ext_id, successor_ext_id, dep_type ∈ {FS,SS,FF,SF}      |
-| `ASSIGNMENT`       | task_ext_id, resource_ext_id                                        |
-
-The generator at `scripts/generate_csv.py` produces a deterministic file
-(seed-controlled) with at least 1000 rows distributed across all record
-types.
-
-### The two patterns are visible in two places
-
-**Inversion of Control** is shown by the import direction: `bll/services.py`
-imports from `dal/interfaces.py` but never from `dal/repositories.py`,
-`dal/csv_reader.py`, or `dal/unit_of_work.py`. The high-level module
-controls the flow; the low-level modules conform to its interfaces. This
-is the opposite of a naive design where the BLL would `from dal.csv_reader
-import CsvDataReader` and instantiate it directly.
-
-**Dependency Injection** is shown by the constructors. `DataImportService`
-takes its dependencies as constructor arguments, never creates them
-itself. The `Container` class in `di/container.py` is where the choice
-of which concrete class to inject is finally made — and it's the only
-place in the codebase where concrete DAL classes are imported alongside
-their abstractions.

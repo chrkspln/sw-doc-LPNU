@@ -1,19 +1,24 @@
+# Python cache
 __pycache__/
 *.py[cod]
-*.pyo
 
+# Virtual env
 .venv/
 venv/
 env/
 
-*.sqlite3
-*.db
+# IDE
+.idea/
 
+# SQLite / local DB
+*.db
+*.sqlite3
+
+# Python tooling caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-.vscode/
-.idea/
-
+# OS junk
 .DS_Store
+Thumbs.db
