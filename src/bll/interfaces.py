@@ -1,7 +1,7 @@
 """
 BLL — service interfaces.
 
-These are the abstractions Controllers (presentation layer) depend on.
+These are the abstractions that the Controllers (presentation layer) depend on.
 Concrete implementations live in services.py and are wired in di/container.py.
 """
 from __future__ import annotations

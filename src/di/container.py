@@ -32,7 +32,7 @@ from ..dal.unit_of_work import SqlAlchemyUnitOfWork
 
 
 class Container:
-    """Manual DI container — explicit wiring, no framework magic."""
+    """Manual DI container. """
 
     def __init__(self, db_url: str = "sqlite:///project_planning.db") -> None:
         # Long-lived singletons.
