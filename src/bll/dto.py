@@ -2,8 +2,7 @@
 BLL — Data Transfer Objects.
 
 DTOs decouple the view layer from the ORM. Controllers and templates
-work with these plain dataclasses instead of SQLAlchemy entity objects,
-so the DAL stays an implementation detail.
+work with these plain dataclasses instead of SQLAlchemy entity objects.
 """
 from __future__ import annotations
 
