@@ -1,7 +1,7 @@
 """
 BLL — service interfaces.
 
-These are the abstractions that the Controllers (presentation layer) depend on.
+These are the abstractions Controllers (presentation layer) depend on.
 Concrete implementations live in services.py and are wired in di/container.py.
 """
 from __future__ import annotations
@@ -69,8 +69,7 @@ class IProjectService(ABC):
     """Read/write operations on the Project aggregate (the main entity)."""
 
     @abstractmethod
-    def list_projects(self, search: Optional[str] = None,
-                      status: Optional[str] = None) -> List[ProjectDto]: ...
+    def list_projects(self) -> List[ProjectDto]: ...
 
     @abstractmethod
     def get_project_detail(self, project_id: int) -> Optional[ProjectDetailDto]: ...
@@ -112,13 +111,39 @@ class ITaskService(ABC):
 
 
 class IResourceService(ABC):
-    """Read-only views over Resources (org-wide pool)."""
+    """Full CRUD over Resources (organisation-wide pool of people, materials, cost items)."""
 
     @abstractmethod
     def list_resources(self) -> List[ResourceDto]: ...
 
     @abstractmethod
     def get_resource(self, resource_id: int) -> Optional[ResourceDto]: ...
+
+    @abstractmethod
+    def create_resource(self, name: str, code: str, resource_type: str,
+                        cost_per_hour: float, max_units: float,
+                        # Human-only
+                        email: Optional[str] = None,
+                        role: Optional[str] = None,
+                        skills: Optional[str] = None,
+                        # Material-only
+                        unit: Optional[str] = None,
+                        consumption_rate: Optional[float] = None,
+                        # Cost-only
+                        fixed_cost: Optional[float] = None) -> ResourceDto: ...
+
+    @abstractmethod
+    def update_resource(self, resource_id: int, name: str, code: str,
+                        cost_per_hour: float, max_units: float,
+                        email: Optional[str] = None,
+                        role: Optional[str] = None,
+                        skills: Optional[str] = None,
+                        unit: Optional[str] = None,
+                        consumption_rate: Optional[float] = None,
+                        fixed_cost: Optional[float] = None) -> Optional[ResourceDto]: ...
+
+    @abstractmethod
+    def delete_resource(self, resource_id: int) -> bool: ...
 
 
 class IStatsService(ABC):

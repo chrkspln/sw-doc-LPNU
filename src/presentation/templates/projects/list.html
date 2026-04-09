@@ -7,19 +7,6 @@
   <h1 class="page-title">Projects <span class="count-badge">{{ projects|length }}</span></h1>
 
   <div class="toolbar">
-    <form class="filter-form" method="get" action="{{ url_for('projects.list_projects') }}">
-      <input type="search" name="q" value="{{ search }}" placeholder="Search by name…" class="input">
-      <select name="status" class="input">
-        <option value="">All statuses</option>
-        {% for s in statuses %}
-          <option value="{{ s }}" {% if current_status == s %}selected{% endif %}>{{ s }}</option>
-        {% endfor %}
-      </select>
-      <button class="btn btn-ghost" type="submit">Filter</button>
-      {% if search or current_status %}
-        <a class="btn btn-text" href="{{ url_for('projects.list_projects') }}">Clear</a>
-      {% endif %}
-    </form>
     <a class="btn btn-primary" href="{{ url_for('projects.new_project_form') }}">+ New project</a>
   </div>
 </header>
@@ -64,7 +51,7 @@
 </div>
 {% else %}
   <div class="empty">
-    <p>No projects match your filters.</p>
+    <p>No projects yet.</p>
     <a class="btn btn-primary" href="{{ url_for('projects.new_project_form') }}">Create the first project</a>
   </div>
 {% endif %}
