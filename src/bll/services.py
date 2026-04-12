@@ -325,15 +325,11 @@ class ProjectService(IProjectService):
     def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
         self._uow_factory = uow_factory
 
-    def list_projects(self, search=None, status=None) -> List[ProjectDto]:
+    def list_projects(self) -> List[ProjectDto]:
         with self._uow_factory() as uow:
             projects = uow.projects.list_all()
             results: List[ProjectDto] = []
             for p in projects:
-                if search and search.lower() not in p.name.lower():
-                    continue
-                if status and p.status != status:
-                    continue
                 tasks = [t for t in p.tasks]
                 assignments = sum(len(t.assignments) for t in tasks)
                 results.append(_to_project_dto(p, len(tasks), assignments))
@@ -460,9 +456,17 @@ class TaskService(ITaskService):
 
 
 # --------------------------------------------------------------------------- #
-# ResourceService — read-only                                                 #
+# ResourceService — full CRUD                                                 #
 # --------------------------------------------------------------------------- #
 class ResourceService(IResourceService):
+    """
+    CRUD over Resources. The polymorphic shape (Human / Material / Cost)
+    is preserved on create — once a resource exists its inheritance type
+    is fixed, because changing it after creation would leave subtype-only
+    columns inconsistent. Update therefore touches only the editable
+    fields of the existing subtype.
+    """
+
     def __init__(self, uow_factory: Callable[[], IUnitOfWork]) -> None:
         self._uow_factory = uow_factory
 
@@ -475,6 +479,66 @@ class ResourceService(IResourceService):
         with self._uow_factory() as uow:
             r = uow.resources.get(resource_id)
             return _to_resource_dto(r) if r else None
+
+    def create_resource(self, name, code, resource_type,
+                        cost_per_hour, max_units,
+                        email=None, role=None, skills=None,
+                        unit=None, consumption_rate=None,
+                        fixed_cost=None) -> ResourceDto:
+        with self._uow_factory() as uow:
+            common = dict(
+                name=name, code=code,
+                cost_per_hour=cost_per_hour, max_units=max_units,
+            )
+            if resource_type == "HUMAN_RESOURCE":
+                obj = HumanResource(**common, email=email, role=role, skills=skills)
+            elif resource_type == "MATERIAL_RESOURCE":
+                obj = MaterialResource(**common, unit=unit,
+                                       consumption_rate=consumption_rate)
+            elif resource_type == "COST_RESOURCE":
+                obj = CostResource(**common, fixed_cost=fixed_cost)
+            else:
+                raise ValueError(f"Unknown resource type: {resource_type!r}")
+
+            uow.resources.add(obj)
+            uow.commit()
+            return _to_resource_dto(obj)
+
+    def update_resource(self, resource_id, name, code, cost_per_hour, max_units,
+                        email=None, role=None, skills=None,
+                        unit=None, consumption_rate=None,
+                        fixed_cost=None) -> Optional[ResourceDto]:
+        with self._uow_factory() as uow:
+            r = uow.resources.get(resource_id)
+            if r is None:
+                return None
+            r.name = name
+            r.code = code
+            r.cost_per_hour = cost_per_hour
+            r.max_units = max_units
+
+            # Only touch the subtype-specific fields that belong to this resource.
+            if r.resource_type == "HUMAN_RESOURCE":
+                r.email = email
+                r.role = role
+                r.skills = skills
+            elif r.resource_type == "MATERIAL_RESOURCE":
+                r.unit = unit
+                r.consumption_rate = consumption_rate
+            elif r.resource_type == "COST_RESOURCE":
+                r.fixed_cost = fixed_cost
+
+            uow.commit()
+            return _to_resource_dto(r)
+
+    def delete_resource(self, resource_id) -> bool:
+        with self._uow_factory() as uow:
+            r = uow.resources.get(resource_id)
+            if r is None:
+                return False
+            uow.resources.delete(resource_id)
+            uow.commit()
+            return True
 
 
 # --------------------------------------------------------------------------- #

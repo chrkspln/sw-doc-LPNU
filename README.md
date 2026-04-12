@@ -36,7 +36,7 @@ python -m src.main web --port 5000
 Open `http://127.0.0.1:5000/` in a browser. You will land on the dashboard,
 which shows aggregate counts of projects, tasks, resources and assignments
 broken down by their status or type. From there the sidebar leads to the
-projects list (full CRUD), and to the resources catalog (read-only).
+projects list (full CRUD), and to the resources catalog (full CRUD).
 
 ## Project layout
 
@@ -60,24 +60,24 @@ lab3/
     │   ├── dto.py                        ← plain dataclasses passed to controllers
     │   └── services.py                   ← concrete services (uow_factory pattern)
     ├── presentation/                     ← Lab 3 — the new layer
-    │   ├── interfaces.py                 ← (kept from Lab 2 — view/controller contracts)
     │   ├── app.py                        ← Flask app factory
     │   ├── controllers/                  ← blueprints = the "Controller" of MVC
     │   │   ├── home.py                   ← GET / (dashboard)
     │   │   ├── projects.py               ← full CRUD on the main entity
     │   │   ├── tasks.py                  ← CRUD on Tasks within a Project
-    │   │   └── resources.py              ← read-only resource views
+    │   │   └── resources.py              ← full CRUD on the resource pool
     │   ├── templates/                    ← Jinja2 = the "View" of MVC
     │   │   ├── base.html, home.html
     │   │   ├── projects/list.html, detail.html, form.html
     │   │   ├── tasks/form.html
-    │   │   └── resources/list.html, detail.html
+    │   │   └── resources/list.html, detail.html, form.html
     │   └── static/style.css
     └── di/container.py                   ← composition root (extended)
 ```
 
 ## Mapping the lab requirements onto the code
 
+The lab text has six numbered requirements. Going through them one by one:
 
 **Requirement 1: choose the main entity.** The main entity is **Project**.
 Every other domain object — tasks, milestones, summary tasks, calendars,
@@ -87,8 +87,8 @@ through composition relationships. Picking it as the main entity for Lab 3
 means the URL hierarchy becomes natural (`/projects/`, `/projects/<id>`,
 `/projects/<id>/tasks/new`) and the CRUD requirement applies to it
 directly. Resources are organisation-wide and don't belong to any single
-project, which is why they get a separate top-level menu item but only
-read-only screens.
+project, which is why they get a separate top-level menu item with their
+own full CRUD flow rather than being nested under a project.
 
 **Requirement 2: controllers and action methods.** Each blueprint in
 `src/presentation/controllers/` is a controller in the MVC sense — a
@@ -113,18 +113,23 @@ populated by the Lab 2 import pipeline — a CSV with around 1077 rows
 covering every record type goes through the same `DataImportService`
 that Lab 2 demonstrated.
 
-**Requirement 4: ability to add, edit and delete data.** Projects and
-tasks both support full CRUD through the web UI. Creating a project is
-a two-step flow — `GET /projects/new` renders the form, `POST /projects/`
-handles the submission, validates the inputs, calls
-`IProjectService.create_project`, flashes a success message, and
-redirects to the new project's detail page. Editing follows the same
-pattern with `GET/POST /projects/<id>/edit`. Deletion is a `POST` to
-`/projects/<id>/delete` guarded by a JavaScript confirm dialog. SQLAlchemy
-takes care of cascading the delete to the project's tasks, calendars,
-baselines and assignments — that's a `cascade="all, delete-orphan"`
-declaration on the Project model from Lab 2. Tasks have their own CRUD
-flow nested under a project.
+**Requirement 4: ability to add, edit and delete data.** All three
+top-level entities — projects, tasks, and resources — support full CRUD
+through the web UI. Creating a project is a two-step flow —
+`GET /projects/new` renders the form, `POST /projects/` handles the
+submission, validates the inputs, calls `IProjectService.create_project`,
+flashes a success message, and redirects to the new project's detail
+page. Editing follows the same pattern with `GET/POST /projects/<id>/edit`.
+Deletion is a `POST` to `/projects/<id>/delete` guarded by a JavaScript
+confirm dialog. SQLAlchemy takes care of cascading the delete to the
+project's tasks, calendars, baselines and assignments — that's a
+`cascade="all, delete-orphan"` declaration on the Project model from
+Lab 2. Tasks have their own CRUD flow nested under a project. Resources
+have a parallel CRUD flow at `/resources/`, with one extra wrinkle: the
+resource hierarchy is polymorphic (Human / Material / Cost), so the
+form switches the visible field group based on the chosen type. On
+edit the type dropdown is locked, because changing inheritance type
+post-creation would orphan subtype-specific columns.
 
 **Requirement 5: data displayed via Views as HTML pages.** The Jinja2
 templates in `templates/` are the "View" of MVC. Each one inherits from
@@ -148,10 +153,13 @@ which act as constructor injection across the closure boundary. The
 container in `src/di/container.py` is the only place where concrete
 service classes are imported and instantiated.
 
-## Architecture notes
-Lab 1 produced the diagrams; Lab 2
+## How the architecture across all three labs holds together
+
+This is one continuous codebase. Lab 1 produced the diagrams; Lab 2
 implemented the DAL and BLL with the IoC and DI patterns; Lab 3 added a
 presentation layer on top without changing anything below it.
+
+Three observations are worth making in defence:
 
 The **dependency direction is strictly inward**. Templates depend on
 controllers, controllers depend on BLL service interfaces, services
@@ -179,6 +187,8 @@ trigger a lazy-load query while rendering, and it doesn't need an open
 session to work with. This separation is the practical reason Lab 3
 templates are so simple.
 
+## A few decisions that are worth being able to defend
+
 **Single-table inheritance for Task and Resource.** Both hierarchies
 share one table with a discriminator column (`task_type`,
 `resource_type`). It keeps the schema readable and the queries simple.
@@ -201,11 +211,65 @@ visualises data on user request. A dashboard with aggregate counts
 groups by status/type) shows the data layer is wired up correctly and
 gives the user a single entry point that summarises the whole system.
 
-**Why resources are read-only.** Resources are an organisation-wide pool
-that, in a real system, would be managed by HR or procurement, not
-inside a project plan. A read-only catalogue plus a detail page is
-enough to show that the assignment tables resolve correctly and that
-the `Resource` polymorphism is rendered properly (each subtype shows
-its own fields — humans show role and skills, materials show unit and
-consumption rate, cost resources show fixed cost).
+**How the resource form handles polymorphism.** Resources are
+single-table-inherited into Human / Material / Cost, each with its own
+small set of subtype-specific columns. The form template hides
+irrelevant fields based on the chosen type — pick "Material" and you
+see Unit + Consumption rate; pick "Cost" and you see Fixed cost. The
+type selector is disabled on edit because changing inheritance type
+post-creation would orphan subtype-specific columns. The BLL service's
+`create_resource` routes to the right SQLAlchemy subclass based on the
+type string, and `update_resource` only touches the fields that belong
+to the existing subtype.
 
+## Possible questions and how to answer them
+
+*"Where is the Model?"* — Distributed across DAL and BLL. The DAL holds
+ORM mappings and persistence; the BLL holds use cases and exposes the
+model through `IProjectService`, `ITaskService`, etc. Together they
+form what MVC calls the Model.
+
+*"Why is the controller dependent on a service interface and not on a
+repository?"* — Lab requirement 6 explicitly says data is read via
+business-logic-layer classes. Letting controllers reach into the DAL
+directly would skip the BLL and break that rule. Service interfaces
+also let me put cross-entity concerns (computing assignment counts for
+each project in the list, building a `ProjectDetailDto` that bundles
+tasks and assignments together) inside one method instead of duplicating
+the logic in every controller.
+
+*"What happens when you delete a project with tasks?"* — SQLAlchemy
+cascades the delete. The Project model in Lab 2 declares
+`cascade="all, delete-orphan"` on its `tasks`, `calendars` and
+`baselines` relationships. Deleting a project removes its tasks, which
+in turn cascade into removing assignments and dependencies attached to
+those tasks. The browser sees a single `POST /projects/<id>/delete` and
+ends up on the empty projects list with a success flash message.
+
+*"How does the resource form handle the three subtypes?"* — The form
+template renders three `<fieldset>` blocks, one per subtype, and
+toggles their visibility with a tiny `onchange` handler on the type
+selector. Submitting the form sends *all* the subtype fields, but the
+BLL's `create_resource` only consults the ones that belong to the
+chosen type — so picking "Material" but accidentally typing into
+the Email field (before switching) doesn't pollute the resulting row.
+On edit, the type dropdown is disabled and a hidden `<input>` carries
+the original type forward, because changing the polymorphic identity
+of an existing row is not a safe operation.
+
+*"How would you add a new entity to the system, say Risk?"* — Add the
+ORM model in `dal/models.py`, add an `IRiskRepository` interface and
+implementation, expose it on the UoW, write `IRiskService` and
+`RiskService` in the BLL, expose them on the container, write the
+controller blueprint and the templates, register the blueprint in
+`presentation/app.py`. The change touches every layer but each change
+is local — no other layer needs to know.
+
+*"Where exactly does inversion of control live in this code?"* — In
+the imports. Open `bll/services.py`: it imports from `dal/interfaces.py`
+but never from `dal/repositories.py`, `dal/csv_reader.py` or
+`dal/unit_of_work.py`. Open any controller in `presentation/controllers/`:
+it imports from `bll/interfaces.py` but never from `bll/services.py`.
+The only file in the codebase that imports both an interface and its
+implementation is `di/container.py`, and that's exactly the
+composition-root pattern.

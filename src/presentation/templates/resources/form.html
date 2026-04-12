@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb">
+    <a href="{{ url_for('home.index') }}">Dashboard</a> ·
+    <a href="{{ url_for('resources.list_resources') }}">Resources</a> ·
+    {{ heading }}
+  </div>
+  <h1 class="page-title">{{ heading }}</h1>
+</header>
+
+<form class="form-card" method="post" action="{{ form_action }}">
+
+  {# ---- Common fields (apply to all resource types) -------------------- #}
+  <div class="row">
+    <div class="field">
+      <label for="name">Name <span class="req">*</span></label>
+      <input id="name" type="text" name="name" required maxlength="200"
+             value="{{ resource.name if resource else '' }}"
+             placeholder="e.g. Senior Backend Engineer">
+    </div>
+    <div class="field">
+      <label for="code">Code <span class="req">*</span></label>
+      <input id="code" type="text" name="code" required maxlength="50"
+             value="{{ resource.code if resource else '' }}"
+             placeholder="e.g. RH001">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="resource_type">Type</label>
+      {# On edit: type is locked (changing inheritance type post-creation
+         would orphan subtype-specific columns). On create: user picks. #}
+      <select id="resource_type" name="resource_type" {% if resource %}disabled{% endif %}
+              onchange="updateResourceTypeFields()">
+        {% for rt in resource_types %}
+          <option value="{{ rt }}"
+            {% if resource and resource.resource_type == rt %}selected{% endif %}>
+            {{ rt|resource_type_label }}
+          </option>
+        {% endfor %}
+      </select>
+      {% if resource %}
+        <input type="hidden" name="resource_type" value="{{ resource.resource_type }}">
+      {% endif %}
+    </div>
+
+    <div class="field">
+      <label for="cost_per_hour">Cost per hour ($)</label>
+      <input id="cost_per_hour" type="number" name="cost_per_hour"
+             min="0" step="0.01"
+             value="{{ '%.2f'|format(resource.cost_per_hour) if resource else '0.00' }}">
+    </div>
+
+    <div class="field">
+      <label for="max_units">Max units</label>
+      <input id="max_units" type="number" name="max_units"
+             min="0" step="0.01"
+             value="{{ '%.2f'|format(resource.max_units) if resource else '1.00' }}">
+    </div>
+  </div>
+
+  {# ---- Human-only fields ---------------------------------------------- #}
+  <fieldset class="type-fields" id="fields-human"
+            {% if resource and resource.resource_type != 'HUMAN_RESOURCE' %}style="display:none"{% endif %}>
+    <legend>Human resource fields</legend>
+
+    <div class="row">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" name="email" maxlength="200"
+               value="{{ resource.email or '' if resource else '' }}"
+               placeholder="user@company.com">
+      </div>
+      <div class="field">
+        <label for="role">Role</label>
+        <input id="role" type="text" name="role" maxlength="100"
+               value="{{ resource.role or '' if resource else '' }}"
+               placeholder="e.g. Senior Developer">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="skills">Skills (semicolon-separated)</label>
+      <input id="skills" type="text" name="skills"
+             value="{{ resource.skills or '' if resource else '' }}"
+             placeholder="e.g. Python;PostgreSQL;Kubernetes">
+    </div>
+  </fieldset>
+
+  {# ---- Material-only fields ------------------------------------------- #}
+  <fieldset class="type-fields" id="fields-material"
+            {% if not resource or resource.resource_type != 'MATERIAL_RESOURCE' %}style="display:none"{% endif %}>
+    <legend>Material resource fields</legend>
+
+    <div class="row">
+      <div class="field">
+        <label for="unit">Unit</label>
+        <input id="unit" type="text" name="unit" maxlength="50"
+               value="{{ resource.unit or '' if resource else '' }}"
+               placeholder="e.g. hours, license, GB-month">
+      </div>
+      <div class="field">
+        <label for="consumption_rate">Consumption rate</label>
+        <input id="consumption_rate" type="number" name="consumption_rate"
+               min="0" step="0.01"
+               value="{{ '%.2f'|format(resource.consumption_rate) if resource and resource.consumption_rate is not none else '' }}">
+      </div>
+    </div>
+  </fieldset>
+
+  {# ---- Cost-only fields ----------------------------------------------- #}
+  <fieldset class="type-fields" id="fields-cost"
+            {% if not resource or resource.resource_type != 'COST_RESOURCE' %}style="display:none"{% endif %}>
+    <legend>Cost resource fields</legend>
+
+    <div class="field">
+      <label for="fixed_cost">Fixed cost ($)</label>
+      <input id="fixed_cost" type="number" name="fixed_cost"
+             min="0" step="0.01"
+             value="{{ '%.2f'|format(resource.fixed_cost) if resource and resource.fixed_cost is not none else '' }}">
+    </div>
+  </fieldset>
+
+  <div class="form-actions">
+    {% if resource %}
+      <a class="btn btn-text" href="{{ url_for('resources.show_resource', resource_id=resource.id) }}">Cancel</a>
+    {% else %}
+      <a class="btn btn-text" href="{{ url_for('resources.list_resources') }}">Cancel</a>
+    {% endif %}
+    <button class="btn btn-primary" type="submit">Save resource</button>
+  </div>
+</form>
+
+<script>
+function updateResourceTypeFields() {
+  const sel = document.getElementById('resource_type');
+  const t = sel ? sel.value : '';
+  document.getElementById('fields-human').style.display    = (t === 'HUMAN_RESOURCE')    ? '' : 'none';
+  document.getElementById('fields-material').style.display = (t === 'MATERIAL_RESOURCE') ? '' : 'none';
+  document.getElementById('fields-cost').style.display     = (t === 'COST_RESOURCE')     ? '' : 'none';
+}
+// Run once on load so the right block is visible from the start.
+updateResourceTypeFields();
+</script>
+{% endblock %}

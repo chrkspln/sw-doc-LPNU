@@ -39,16 +39,8 @@ def create_projects_blueprint(
     # ------------------------------------------------------------------ list
     @bp.route("/")
     def list_projects():
-        search = request.args.get("q", "").strip() or None
-        status = request.args.get("status", "").strip() or None
-        projects = project_service.list_projects(search=search, status=status)
-        return render_template(
-            "projects/list.html",
-            projects=projects,
-            search=search or "",
-            current_status=status or "",
-            statuses=PROJECT_STATUSES,
-        )
+        projects = project_service.list_projects()
+        return render_template("projects/list.html", projects=projects)
 
     # ---------------------------------------------------------------- detail
     @bp.route("/<int:project_id>")

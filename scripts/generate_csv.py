@@ -9,7 +9,7 @@ and assignments. The output is guaranteed to contain at least 1000 rows.
 Usage:
     python -m scripts.generate_csv
     python -m scripts.generate_csv --output data/project_data.csv --projects 30
-    python -m scripts.generate_csv --seed 42
+    python -m scripts.generate_csv --seed 42        # reproducible output
 """
 from __future__ import annotations
 
