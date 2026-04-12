@@ -36,7 +36,7 @@ python -m src.main web --port 5000
 Open `http://127.0.0.1:5000/` in a browser. You will land on the dashboard,
 which shows aggregate counts of projects, tasks, resources and assignments
 broken down by their status or type. From there the sidebar leads to the
-projects list (full CRUD), and to the resources catalog (full CRUD).
+projects list and to the resources catalog.
 
 ## Project layout
 
@@ -77,7 +77,7 @@ lab3/
 
 ## Mapping the lab requirements onto the code
 
-The lab text has six numbered requirements. Going through them one by one:
+The lab text has six numbered requirements:
 
 **Requirement 1: choose the main entity.** The main entity is **Project**.
 Every other domain object — tasks, milestones, summary tasks, calendars,
@@ -159,8 +159,6 @@ This is one continuous codebase. Lab 1 produced the diagrams; Lab 2
 implemented the DAL and BLL with the IoC and DI patterns; Lab 3 added a
 presentation layer on top without changing anything below it.
 
-Three observations are worth making in defence:
-
 The **dependency direction is strictly inward**. Templates depend on
 controllers, controllers depend on BLL service interfaces, services
 depend on DAL interfaces, and the DAL depends on nothing in the
@@ -186,8 +184,6 @@ with simple Python-typed fields (`int`, `str`, `date`, `List[TaskDto]`)
 trigger a lazy-load query while rendering, and it doesn't need an open
 session to work with. This separation is the practical reason Lab 3
 templates are so simple.
-
-## A few decisions that are worth being able to defend
 
 **Single-table inheritance for Task and Resource.** Both hierarchies
 share one table with a discriminator column (`task_type`,
@@ -221,55 +217,3 @@ post-creation would orphan subtype-specific columns. The BLL service's
 `create_resource` routes to the right SQLAlchemy subclass based on the
 type string, and `update_resource` only touches the fields that belong
 to the existing subtype.
-
-## Possible questions and how to answer them
-
-*"Where is the Model?"* — Distributed across DAL and BLL. The DAL holds
-ORM mappings and persistence; the BLL holds use cases and exposes the
-model through `IProjectService`, `ITaskService`, etc. Together they
-form what MVC calls the Model.
-
-*"Why is the controller dependent on a service interface and not on a
-repository?"* — Lab requirement 6 explicitly says data is read via
-business-logic-layer classes. Letting controllers reach into the DAL
-directly would skip the BLL and break that rule. Service interfaces
-also let me put cross-entity concerns (computing assignment counts for
-each project in the list, building a `ProjectDetailDto` that bundles
-tasks and assignments together) inside one method instead of duplicating
-the logic in every controller.
-
-*"What happens when you delete a project with tasks?"* — SQLAlchemy
-cascades the delete. The Project model in Lab 2 declares
-`cascade="all, delete-orphan"` on its `tasks`, `calendars` and
-`baselines` relationships. Deleting a project removes its tasks, which
-in turn cascade into removing assignments and dependencies attached to
-those tasks. The browser sees a single `POST /projects/<id>/delete` and
-ends up on the empty projects list with a success flash message.
-
-*"How does the resource form handle the three subtypes?"* — The form
-template renders three `<fieldset>` blocks, one per subtype, and
-toggles their visibility with a tiny `onchange` handler on the type
-selector. Submitting the form sends *all* the subtype fields, but the
-BLL's `create_resource` only consults the ones that belong to the
-chosen type — so picking "Material" but accidentally typing into
-the Email field (before switching) doesn't pollute the resulting row.
-On edit, the type dropdown is disabled and a hidden `<input>` carries
-the original type forward, because changing the polymorphic identity
-of an existing row is not a safe operation.
-
-*"How would you add a new entity to the system, say Risk?"* — Add the
-ORM model in `dal/models.py`, add an `IRiskRepository` interface and
-implementation, expose it on the UoW, write `IRiskService` and
-`RiskService` in the BLL, expose them on the container, write the
-controller blueprint and the templates, register the blueprint in
-`presentation/app.py`. The change touches every layer but each change
-is local — no other layer needs to know.
-
-*"Where exactly does inversion of control live in this code?"* — In
-the imports. Open `bll/services.py`: it imports from `dal/interfaces.py`
-but never from `dal/repositories.py`, `dal/csv_reader.py` or
-`dal/unit_of_work.py`. Open any controller in `presentation/controllers/`:
-it imports from `bll/interfaces.py` but never from `bll/services.py`.
-The only file in the codebase that imports both an interface and its
-implementation is `di/container.py`, and that's exactly the
-composition-root pattern.
