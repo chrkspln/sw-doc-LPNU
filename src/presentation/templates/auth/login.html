@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — Project Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <div class="brand-mark">PP</div>
+    <h1 class="login-title">Sign in to <em>Project Planner</em></h1>
+    <p class="login-sub">Authentication via Firebase. Use the credentials your administrator created for you.</p>
+
+    <div id="error-banner" class="flash flash-error" style="display:none">
+      <span class="flash-dot"></span>
+      <span id="error-text"></span>
+    </div>
+
+    <div class="login-form">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email" placeholder="user@example.com">
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button id="login-btn" class="btn btn-primary" type="button">Sign in</button>
+    </div>
+  </main>
+
+  {% if firebase_enabled %}
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+    const firebaseConfig = {{ firebase_web_config | tojson }};
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const btn       = document.getElementById("login-btn");
+    const emailEl   = document.getElementById("email");
+    const passEl    = document.getElementById("password");
+    const errBanner = document.getElementById("error-banner");
+    const errText   = document.getElementById("error-text");
+    const nextUrl   = {{ next_url | tojson }};
+
+    function showError(msg) {
+      errText.textContent = msg;
+      errBanner.style.display = "flex";
+    }
+
+    async function doLogin() {
+      errBanner.style.display = "none";
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+      try {
+        const cred = await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
+        const idToken = await cred.user.getIdToken();
+
+        const r = await fetch("/auth/login", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ idToken }),
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          throw new Error(data.error || "Server rejected login");
+        }
+        window.location.href = nextUrl || "/";
+      } catch (e) {
+        showError(e.message || "Login failed");
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
+    }
+
+    btn.addEventListener("click", doLogin);
+    [emailEl, passEl].forEach(el => el.addEventListener("keydown", e => {
+      if (e.key === "Enter") doLogin();
+    }));
+  </script>
+  {% else %}
+  <script>
+    document.getElementById("error-banner").style.display = "flex";
+    document.getElementById("error-text").textContent =
+      "Firebase Web SDK is not configured. Set FIREBASE_WEB_* environment variables.";
+    document.getElementById("login-btn").disabled = true;
+  </script>
+  {% endif %}
+</body>
+</html>

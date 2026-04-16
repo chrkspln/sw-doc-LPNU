@@ -151,3 +151,24 @@ class IStatsService(ABC):
 
     @abstractmethod
     def get_dashboard_stats(self) -> DashboardStats: ...
+
+
+class IEventPublisher(ABC):
+    """
+    Publishes an audit event somewhere external.
+
+    Used by controllers after successful CRUD operations to log who did
+    what, when. The concrete implementation (`Lab4SubprocessPublisher`)
+    spawns a Lab 4 subprocess that ships the event to whichever sink Lab 4
+    is currently configured for (Firestore in our setup).
+
+    Failures inside `publish` are silently swallowed by the
+    implementation — audit logging must never break the user-facing
+    flow if the external sink is unavailable.
+    """
+
+    @abstractmethod
+    def publish(self, action: str, entity_type: str,
+                entity_id: Optional[str] = None,
+                details: Optional[dict] = None) -> None: ...
+

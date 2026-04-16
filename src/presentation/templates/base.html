@@ -26,20 +26,31 @@
 
       <nav class="nav">
         <a class="nav-link {% if request.endpoint == 'home.index' %}active{% endif %}"
-           href="{{ url_for('home.index') }}">
+           href="{{ url_for('home.index') }}"
+           data-event="nav.dashboard">
           <span class="nav-num">01</span> Dashboard
         </a>
         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('projects.') %}active{% endif %}"
-           href="{{ url_for('projects.list_projects') }}">
+           href="{{ url_for('projects.list_projects') }}"
+           data-event="nav.projects">
           <span class="nav-num">02</span> Projects
         </a>
         <a class="nav-link {% if request.endpoint and request.endpoint.startswith('resources.') %}active{% endif %}"
-           href="{{ url_for('resources.list_resources') }}">
+           href="{{ url_for('resources.list_resources') }}"
+           data-event="nav.resources">
           <span class="nav-num">03</span> Resources
         </a>
       </nav>
 
       <div class="sidebar-footer">
+        {% if current_user %}
+          <div class="user-chip">
+            <span class="user-email" title="{{ current_user.email }}">{{ current_user.email }}</span>
+            <form action="{{ url_for('auth.logout') }}" method="post" class="inline-form">
+              <button class="btn btn-text" type="submit" data-event="auth.logout">Sign out</button>
+            </form>
+          </div>
+        {% endif %}
         <span class="meta-line">Variant 27 · Microsoft Project</span>
         <span class="meta-line">Domain: project plan creation</span>
       </div>
@@ -63,5 +74,40 @@
     </main>
 
   </div>
+
+  {% if firebase_enabled %}
+  {# Firebase Analytics — tracks page views automatically; tracks clicks
+     on any element with `data-event="..."`. Separate from server-side
+     audit log; this is for behaviour analytics in the Firebase console. #}
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+    import { getAnalytics, logEvent, setUserId } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics.js";
+
+    const firebaseConfig = {{ firebase_web_config | tojson }};
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+
+    {% if current_user %}
+      setUserId(analytics, {{ current_user.uid | tojson }});
+    {% endif %}
+
+    // Auto-log a page_view enriched with the route endpoint.
+    logEvent(analytics, "page_view", {
+      page_path: window.location.pathname,
+      page_title: document.title,
+      endpoint: {{ request.endpoint | tojson }},
+    });
+
+    // Log every click on an element with data-event="...".
+    document.addEventListener("click", (e) => {
+      const target = e.target.closest("[data-event]");
+      if (!target) return;
+      logEvent(analytics, target.getAttribute("data-event"), {
+        href: target.getAttribute("href") || "",
+        text: (target.textContent || "").trim().slice(0, 80),
+      });
+    });
+  </script>
+  {% endif %}
 </body>
 </html>
