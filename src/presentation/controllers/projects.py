@@ -16,7 +16,7 @@ from datetime import datetime
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
-from ...bll.interfaces import IProjectService, ITaskService
+from ...bll.interfaces import IEventPublisher, IProjectService, ITaskService
 
 PROJECT_STATUSES = ["PLANNED", "IN_PROGRESS", "COMPLETED", "ON_HOLD"]
 
@@ -33,6 +33,7 @@ def _parse_date_field(value):
 def create_projects_blueprint(
     project_service: IProjectService,
     task_service: ITaskService,
+    event_publisher: IEventPublisher,
 ) -> Blueprint:
     bp = Blueprint("projects", __name__, url_prefix="/projects")
 
@@ -80,6 +81,12 @@ def create_projects_blueprint(
             end_date=_parse_date_field(request.form.get("end_date")),
             status=request.form.get("status", "PLANNED"),
         )
+        event_publisher.publish(
+            action="project.create",
+            entity_type="project",
+            entity_id=project.id,
+            details={"name": project.name, "status": project.status},
+        )
         flash(f"Project '{project.name}' created.", "success")
         return redirect(url_for("projects.show_project", project_id=project.id))
 
@@ -114,6 +121,12 @@ def create_projects_blueprint(
         )
         if updated is None:
             abort(404)
+        event_publisher.publish(
+            action="project.update",
+            entity_type="project",
+            entity_id=updated.id,
+            details={"name": updated.name, "status": updated.status},
+        )
         flash(f"Project '{updated.name}' updated.", "success")
         return redirect(url_for("projects.show_project", project_id=project_id))
 
@@ -123,6 +136,11 @@ def create_projects_blueprint(
         ok = project_service.delete_project(project_id)
         if not ok:
             abort(404)
+        event_publisher.publish(
+            action="project.delete",
+            entity_type="project",
+            entity_id=project_id,
+        )
         flash("Project deleted.", "success")
         return redirect(url_for("projects.list_projects"))
 

@@ -635,3 +635,81 @@ a.row-title:hover { color: var(--accent-ink); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ---------- Login page ------------------------------------------------- */
+.login-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.login-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 40px 44px;
+  max-width: 440px;
+  width: 100%;
+  display: flex; flex-direction: column; gap: 18px;
+  box-shadow: var(--shadow);
+}
+
+.login-card .brand-mark {
+  margin-bottom: 8px;
+}
+
+.login-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 32px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.login-title em {
+  font-style: italic;
+  color: var(--accent-ink);
+  font-weight: 500;
+}
+
+.login-sub {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+
+.login-form {
+  display: flex; flex-direction: column; gap: 16px;
+  margin-top: 8px;
+}
+
+.login-form .btn-primary {
+  margin-top: 8px;
+  align-self: stretch;
+  justify-content: center;
+  padding: 12px;
+  font-size: 14.5px;
+}
+
+/* ---------- User chip in sidebar -------------------------------------- */
+.user-chip {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg);
+  margin-bottom: 14px;
+}
+.user-email {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}

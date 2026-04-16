@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
-from ...bll.interfaces import IResourceService
+from ...bll.interfaces import IEventPublisher, IResourceService
 
 RESOURCE_TYPES = ["HUMAN_RESOURCE", "MATERIAL_RESOURCE", "COST_RESOURCE"]
 
@@ -43,7 +43,10 @@ def _parse_optional_float(value):
         return None
 
 
-def create_resources_blueprint(resource_service: IResourceService) -> Blueprint:
+def create_resources_blueprint(
+    resource_service: IResourceService,
+    event_publisher: IEventPublisher,
+) -> Blueprint:
     bp = Blueprint("resources", __name__, url_prefix="/resources")
 
     # ------------------------------------------------------------------ list
@@ -97,6 +100,12 @@ def create_resources_blueprint(resource_service: IResourceService) -> Blueprint:
             consumption_rate=_parse_optional_float(request.form.get("consumption_rate")),
             fixed_cost=_parse_optional_float(request.form.get("fixed_cost")),
         )
+        event_publisher.publish(
+            action="resource.create",
+            entity_type="resource",
+            entity_id=r.id,
+            details={"name": r.name, "resource_type": r.resource_type},
+        )
         flash(f"Resource '{r.name}' created.", "success")
         return redirect(url_for("resources.show_resource", resource_id=r.id))
 
@@ -137,6 +146,12 @@ def create_resources_blueprint(resource_service: IResourceService) -> Blueprint:
         )
         if updated is None:
             abort(404)
+        event_publisher.publish(
+            action="resource.update",
+            entity_type="resource",
+            entity_id=updated.id,
+            details={"name": updated.name, "resource_type": updated.resource_type},
+        )
         flash(f"Resource '{updated.name}' updated.", "success")
         return redirect(url_for("resources.show_resource", resource_id=resource_id))
 
@@ -146,6 +161,11 @@ def create_resources_blueprint(resource_service: IResourceService) -> Blueprint:
         ok = resource_service.delete_resource(resource_id)
         if not ok:
             abort(404)
+        event_publisher.publish(
+            action="resource.delete",
+            entity_type="resource",
+            entity_id=resource_id,
+        )
         flash("Resource deleted.", "success")
         return redirect(url_for("resources.list_resources"))
 
