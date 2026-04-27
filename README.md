@@ -226,4 +226,4 @@ their abstractions.
 
 The Unit of Work and Repository patterns are bonus-points territory:
 they're not strictly required by the lab text but they're standard for
-ORM-backed applications and demonstrate mature design thinking.
+ORM-backed applications.
