@@ -1,0 +1,67 @@
+{# Base layout — sidebar nav + main content area + flash messages #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Project Planner{% endblock %} — Lab 3</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">PP</div>
+        <div class="brand-name">
+          <span class="brand-title">Project Planner</span>
+          <span class="brand-sub">Lab 3 · MVC</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="nav-link {% if request.endpoint == 'home.index' %}active{% endif %}"
+           href="{{ url_for('home.index') }}">
+          <span class="nav-num">01</span> Dashboard
+        </a>
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('projects.') %}active{% endif %}"
+           href="{{ url_for('projects.list_projects') }}">
+          <span class="nav-num">02</span> Projects
+        </a>
+        <a class="nav-link {% if request.endpoint and request.endpoint.startswith('resources.') %}active{% endif %}"
+           href="{{ url_for('resources.list_resources') }}">
+          <span class="nav-num">03</span> Resources
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span class="meta-line">Variant 27 · Microsoft Project</span>
+        <span class="meta-line">Domain: project plan creation</span>
+      </div>
+    </aside>
+
+    <main class="main">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-stack">
+            {% for category, message in messages %}
+              <div class="flash flash-{{ category }}">
+                <span class="flash-dot"></span>
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</body>
+</html>

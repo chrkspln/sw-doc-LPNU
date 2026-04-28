@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Resources{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb"><a href="{{ url_for('home.index') }}">Dashboard</a> · Resources</div>
+  <h1 class="page-title">Resources <span class="count-badge">{{ resources|length }}</span></h1>
+  <p class="page-sub">Organization-wide pool of people, materials and cost items that can be assigned to tasks.</p>
+</header>
+
+<div class="data-card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th class="col-name">Name</th>
+        <th>Type</th>
+        <th>Code</th>
+        <th class="num">Cost / hr</th>
+        <th class="num">Max units</th>
+        <th>Detail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in resources %}
+        <tr>
+          <td class="col-name">
+            <a class="row-title" href="{{ url_for('resources.show_resource', resource_id=r.id) }}">{{ r.name }}</a>
+            {% if r.ext_id %}<span class="row-ext">{{ r.ext_id }}</span>{% endif %}
+          </td>
+          <td><span class="tag tag-resource">{{ r.resource_type|resource_type_label }}</span></td>
+          <td class="mono">{{ r.code }}</td>
+          <td class="num mono">{{ r.cost_per_hour|money }}</td>
+          <td class="num mono">{{ "%.2f"|format(r.max_units) }}</td>
+          <td class="muted">
+            {% if r.role %}{{ r.role }}{% endif %}
+            {% if r.unit %}{{ r.unit }}{% endif %}
+            {% if r.fixed_cost %}fixed {{ r.fixed_cost|money }}{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

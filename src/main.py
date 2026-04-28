@@ -1,9 +1,13 @@
 """
 Application entry point.
 
-Usage:
-    python -m src.main --csv data/project_data.csv
-    python -m src.main --csv data/project_data.csv --db sqlite:///custom.db
+Two subcommands:
+
+    python -m src.main import --csv data/project_data.csv --clear
+    python -m src.main web    --port 5000
+
+`import` runs the Lab-2 CSV-to-DB pipeline.
+`web` launches the Lab-3 Flask MVC web app.
 """
 from __future__ import annotations
 
@@ -14,13 +18,7 @@ import sys
 from .dal.database import create_engine_and_session
 from .dal.models import Base
 from .di.container import Container
-
-
-def _clear_database(db_url: str) -> None:
-    """Drop and recreate all tables so the import can run fresh."""
-    engine, _ = create_engine_and_session(db_url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
+from .presentation.app import create_app
 
 
 def _setup_logging() -> None:
@@ -31,29 +29,13 @@ def _setup_logging() -> None:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    _setup_logging()
+def _clear_database(db_url: str) -> None:
+    engine, _ = create_engine_and_session(db_url)
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
 
-    parser = argparse.ArgumentParser(
-        description="Project Planning System — load CSV data into the database."
-    )
-    parser.add_argument(
-        "--csv",
-        default="data/project_data.csv",
-        help="Path to the CSV input file (default: data/project_data.csv)",
-    )
-    parser.add_argument(
-        "--db",
-        default="sqlite:///project_planning.db",
-        help="SQLAlchemy database URL (default: sqlite:///project_planning.db)",
-    )
-    parser.add_argument(
-        "--clear",
-        action="store_true",
-        help="Drop and recreate all tables before import (useful for repeat runs).",
-    )
-    args = parser.parse_args(argv)
 
+def cmd_import(args: argparse.Namespace) -> int:
     if args.clear:
         print(f"Clearing database at {args.db}…")
         _clear_database(args.db)
@@ -66,6 +48,41 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Done.\n  {report}")
     print(f"  Total entities created: {report.total_created()}")
     return 0
+
+
+def cmd_web(args: argparse.Namespace) -> int:
+    container = Container(db_url=args.db)
+    app = create_app(container)
+    print(f"Starting web server at http://{args.host}:{args.port}")
+    print(f"Database: {args.db}")
+    app.run(host=args.host, port=args.port, debug=args.debug, use_reloader=False)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    _setup_logging()
+
+    parser = argparse.ArgumentParser(
+        description="Project Planning System — Lab 2 + Lab 3 entry point."
+    )
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_imp = sub.add_parser("import", help="Load CSV data into the database (Lab 2 pipeline).")
+    p_imp.add_argument("--csv", default="data/project_data.csv")
+    p_imp.add_argument("--db", default="sqlite:///project_planning.db")
+    p_imp.add_argument("--clear", action="store_true",
+                       help="Drop and recreate all tables before import.")
+    p_imp.set_defaults(func=cmd_import)
+
+    p_web = sub.add_parser("web", help="Launch the Flask MVC web application (Lab 3).")
+    p_web.add_argument("--host", default="127.0.0.1")
+    p_web.add_argument("--port", type=int, default=5000)
+    p_web.add_argument("--db", default="sqlite:///project_planning.db")
+    p_web.add_argument("--debug", action="store_true")
+    p_web.set_defaults(func=cmd_web)
+
+    args = parser.parse_args(argv)
+    return args.func(args)
 
 
 if __name__ == "__main__":
