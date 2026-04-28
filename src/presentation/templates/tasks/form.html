@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb">
+    <a href="{{ url_for('home.index') }}">Dashboard</a> ·
+    <a href="{{ url_for('projects.list_projects') }}">Projects</a> ·
+    <a href="{{ url_for('projects.show_project', project_id=project.id) }}">{{ project.name }}</a> ·
+    {{ heading }}
+  </div>
+  <h1 class="page-title">{{ heading }}</h1>
+</header>
+
+<form class="form-card" method="post" action="{{ form_action }}">
+  <div class="field">
+    <label for="name">Task name <span class="req">*</span></label>
+    <input id="name" type="text" name="name" required maxlength="200"
+           value="{{ task.name if task else '' }}"
+           placeholder="e.g. Implement payment module">
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="task_type">Type</label>
+      <select id="task_type" name="task_type" {% if task %}disabled{% endif %}>
+        {% for tt in task_types %}
+          <option value="{{ tt }}" {% if task and task.task_type == tt %}selected{% endif %}>{{ tt|task_type_label }}</option>
+        {% endfor %}
+      </select>
+      {% if task %}<input type="hidden" name="task_type" value="{{ task.task_type }}">{% endif %}
+    </div>
+
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        {% for s in statuses %}
+          <option value="{{ s }}" {% if task and task.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="priority">Priority (0–1000)</label>
+      <input id="priority" type="number" name="priority" min="0" max="1000"
+             value="{{ task.priority if task else 500 }}">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="duration">Duration (days)</label>
+      <input id="duration" type="number" name="duration" min="0"
+             value="{{ task.duration if task else 0 }}">
+    </div>
+    <div class="field">
+      <label for="work">Work (hours)</label>
+      <input id="work" type="number" name="work" min="0"
+             value="{{ task.work if task else 0 }}">
+    </div>
+    {% if task %}
+    <div class="field">
+      <label for="percent_complete">Progress (0–1)</label>
+      <input id="percent_complete" type="number" name="percent_complete"
+             min="0" max="1" step="0.01"
+             value="{{ '%.2f'|format(task.percent_complete) }}">
+    </div>
+    {% endif %}
+  </div>
+
+  {% if not task %}
+    <div class="field">
+      <label for="parent_id">Parent (summary task)</label>
+      <select id="parent_id" name="parent_id">
+        <option value="">— None —</option>
+        {% for parent in possible_parents %}
+          <option value="{{ parent.id }}">{{ parent.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  {% endif %}
+
+  <div class="field check-field">
+    <label class="check-label">
+      <input type="checkbox" name="is_critical" {% if task and task.is_critical %}checked{% endif %}>
+      <span>Critical path task</span>
+    </label>
+  </div>
+
+  <div class="form-actions">
+    <a class="btn btn-text" href="{{ url_for('projects.show_project', project_id=project.id) }}">Cancel</a>
+    <button class="btn btn-primary" type="submit">Save task</button>
+  </div>
+</form>
+{% endblock %}

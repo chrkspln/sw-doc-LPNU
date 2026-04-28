@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb">
+    <a href="{{ url_for('home.index') }}">Dashboard</a> ·
+    <a href="{{ url_for('projects.list_projects') }}">Projects</a> ·
+    {{ heading }}
+  </div>
+  <h1 class="page-title">{{ heading }}</h1>
+</header>
+
+<form class="form-card" method="post" action="{{ form_action }}">
+  <div class="field">
+    <label for="name">Name <span class="req">*</span></label>
+    <input id="name" type="text" name="name" required maxlength="200"
+           value="{{ project.name if project else '' }}"
+           placeholder="e.g. ERP Migration v3">
+  </div>
+
+  <div class="field">
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="4"
+              placeholder="Optional summary or notes…">{{ project.description or '' if project else '' }}</textarea>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="start_date">Start date</label>
+      <input id="start_date" type="date" name="start_date"
+             value="{{ project.start_date.isoformat() if project and project.start_date else '' }}">
+    </div>
+    <div class="field">
+      <label for="end_date">End date</label>
+      <input id="end_date" type="date" name="end_date"
+             value="{{ project.end_date.isoformat() if project and project.end_date else '' }}">
+    </div>
+    <div class="field">
+      <label for="status">Status</label>
+      <select id="status" name="status">
+        {% for s in statuses %}
+          <option value="{{ s }}" {% if project and project.status == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    {% if project %}
+      <a class="btn btn-text" href="{{ url_for('projects.show_project', project_id=project.id) }}">Cancel</a>
+    {% else %}
+      <a class="btn btn-text" href="{{ url_for('projects.list_projects') }}">Cancel</a>
+    {% endif %}
+    <button class="btn btn-primary" type="submit">Save project</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ resource.name }}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb">
+    <a href="{{ url_for('home.index') }}">Dashboard</a> ·
+    <a href="{{ url_for('resources.list_resources') }}">Resources</a> ·
+    {{ resource.name }}
+  </div>
+  <h1 class="page-title">{{ resource.name }}</h1>
+  <p class="page-sub">{{ resource.resource_type|resource_type_label }} · {{ resource.code }}</p>
+</header>
+
+<section class="meta-grid">
+  <div class="meta-cell"><span class="meta-key">Cost / hour</span><span class="big-num">{{ resource.cost_per_hour|money }}</span></div>
+  <div class="meta-cell"><span class="meta-key">Max units</span><span class="big-num">{{ "%.2f"|format(resource.max_units) }}</span></div>
+
+  {% if resource.role %}
+  <div class="meta-cell"><span class="meta-key">Role</span><span>{{ resource.role }}</span></div>
+  {% endif %}
+  {% if resource.email %}
+  <div class="meta-cell"><span class="meta-key">Email</span><span class="mono">{{ resource.email }}</span></div>
+  {% endif %}
+  {% if resource.skills %}
+  <div class="meta-cell skills-cell"><span class="meta-key">Skills</span>
+    <div class="skill-tags">
+      {% for skill in resource.skills.split(';') %}
+        <span class="skill-tag">{{ skill }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  {% if resource.unit %}
+  <div class="meta-cell"><span class="meta-key">Unit</span><span>{{ resource.unit }}</span></div>
+  {% endif %}
+  {% if resource.consumption_rate is not none %}
+  <div class="meta-cell"><span class="meta-key">Consumption rate</span><span class="mono">{{ resource.consumption_rate }}</span></div>
+  {% endif %}
+  {% if resource.fixed_cost is not none %}
+  <div class="meta-cell"><span class="meta-key">Fixed cost</span><span class="big-num">{{ resource.fixed_cost|money }}</span></div>
+  {% endif %}
+</section>
+{% endblock %}
