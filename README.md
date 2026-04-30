@@ -1,74 +1,69 @@
 # Lab 4 — Strategy Pattern over the NCDC Storm Events Dataset
 
 A Python application that reads weather-event records from the NCDC
-Storm Events Database (variant 27) and pushes them to one of four
-storage destinations: the console, a local file, Apache Kafka, or
-Redis. Switching destinations happens entirely in `config.yaml`.
+Storm Events Database (variant 27) and writes them to one of three
+storage destinations: the console, Apache Kafka, or Redis. Switching
+destinations happens entirely in `config.yaml` — no code changes.
 
-The reading code lives in `src/reader/` and knows nothing about
-output. It produces an iterator of `StormEvent` objects and stops
-there. The output code lives in `src/output/` and knows nothing about
-input — it accepts any iterable of events. They meet in `main.py`,
-which is the Strategy pattern's *Client*: it holds an
-`IOutputStrategy` reference whose concrete type it never inspects.
+## What the lab requires
 
-The four sinks (console, file, Kafka, Redis) are interchangeable
-because they all implement the same three-method interface
-(`open` / `write` / `close`). A factory function in
-`src/output/factory.py` is the only place in the codebase where the
-concrete strategy classes meet a config string. Adding a fifth sink
-later — S3, PostgreSQL, RabbitMQ, anything — is one new strategy
-class and one new branch in the factory. Nothing else changes.
+1. Read data from the variant dataset and write it to a file.
+2. Use the Strategy pattern to swap output destinations.
+3. The reading code must be separated from the output code.
+4. The console output must be organised using the Strategy pattern, and
+   must allow switching to Kafka or Redis with minimal changes — through
+   configuration files, not code edits.
 
-The Kafka and Redis strategies work in two modes. With
-`output.dry_run: true` they print exactly what they *would* send to
-the broker, without actually connecting — handy for demoing the
-pattern without standing up infrastructure. Set `dry_run: false`
-and they connect for real to whatever's listening on the configured
-host:port.
+## How those requirements map to the code
+
+**Reading is in `src/reader/`.** It produces an iterator of `StormEvent`
+objects from a real NCDC bulk CSV (the same `.csv.gz` files NCEI publishes
+monthly) and stops there. It has no imports from `src/output/`.
+
+**Writing is in `src/output/`.** `IOutputStrategy` is the abstract role.
+`ConsoleOutputStrategy`, `KafkaOutputStrategy`, and `RedisOutputStrategy`
+are the three concrete implementations. They share nothing except the
+interface they implement, and they have no imports from `src/reader/`.
+
+**`src/main.py` is the Client.** It loads `config.yaml`, asks the factory
+for a strategy by name, and calls `write_all` on whatever object it
+gets back. It never imports any concrete strategy class.
+
+**Switching happens in `config.yaml`.** Edit `output.strategy` from
+`console` to `kafka` or `redis`. The factory in `src/output/factory.py`
+is the one place where the config string meets the concrete classes.
+
+There are no CLI flags that override the config. The only way to swap
+strategies is to edit the config file, because that's what the lab asks
+for.
 
 ## How to run it
 
-Install the three dependencies:
-
 ```bash
 pip install -r requirements.txt
-```
-
-(YAML for the config, plus the Kafka and Redis client libraries.
-The Kafka and Redis libraries are only used when their respective
-strategies are active — the console and file strategies have zero
-external dependencies.)
-
-Generate the sample dataset (200 storm events in the real NCDC
-column format):
-
-```bash
-python -m scripts.generate_sample --output data/storm_events.csv --rows 200
-```
-
-Run the program with whatever strategy is currently configured in
-`config.yaml`:
-
-```bash
 python -m src.main
 ```
 
-To switch strategies, edit `config.yaml`:
+The bundled `data/sample.csv.gz` is a 5-row file in real NCDC bulk format
+(same 51 columns, same `MM/DD/YYYY hh:mm:ss` datetime format) — it lets
+you exercise the pipeline offline.
+
+To run against a real NCDC file:
+
+```bash
+python -m scripts.download_ncdc --year 2024
+# Edit config.yaml: set input.file to the downloaded path.
+python -m src.main
+```
+
+To switch the output destination, edit `config.yaml`:
 
 ```yaml
 output:
-  strategy: console     # change to: file | kafka | redis
+  strategy: console     # or: kafka | redis
 ```
 
-Or override on the command line for a one-off run:
-
-```bash
-python -m src.main --strategy console
-python -m src.main --strategy file
-python -m src.main --strategy kafka     # dry-run by default
-python -m src.main --strategy redis     # dry-run by default
-```
+Re-run `python -m src.main`. No code edits.
 
 ## Project layout
 
@@ -76,112 +71,89 @@ python -m src.main --strategy redis     # dry-run by default
 lab4/
 ├── README.md
 ├── requirements.txt
-├── config.yaml                       ← THE swap point — change this, not code
-├── docker-compose.yml                ← optional Kafka + Redis for real runs
-├── data/storm_events.csv             ← generated sample dataset
-├── scripts/generate_sample.py        ← realistic NCDC-format generator
+├── config.yaml                       ← THE swap point
+├── data/
+│   ├── sample.csv                    ← 5-row test file (real NCDC schema)
+│   └── sample.csv.gz                 ← same file gzipped
+├── scripts/
+│   └── download_ncdc.py              ← fetches real NCDC bulk files
 └── src/
     ├── main.py                       ← the Strategy pattern's Client
-    ├── config.py                     ← thin YAML loader
-    ├── reader/                       ← data-source side; no idea about output
+    ├── config.py                     ← YAML loader
+    ├── reader/                       ← data-source side
     │   ├── interfaces.py             ← IStormEventReader
-    │   ├── models.py                 ← StormEvent dataclass (NCDC schema)
-    │   └── csv_reader.py             ← CsvStormEventReader implementation
-    └── output/                       ← sink side; no idea where data came from
-        ├── interfaces.py             ← IOutputStrategy  ← THE GoF Strategy
+    │   ├── models.py                 ← StormEvent dataclass (51 columns)
+    │   └── csv_reader.py             ← CsvStormEventReader (gzip-aware)
+    └── output/                       ← sink side
+        ├── interfaces.py             ← IOutputStrategy ← THE GoF Strategy
         ├── factory.py                ← config string → concrete strategy
-        └── strategies/               ← one file per concrete sink
+        └── strategies/
             ├── console.py
-            ├── file.py
             ├── kafka.py
             └── redis.py
 ```
 
-## How the Strategy pattern is realized in this code
+## The Strategy pattern in this code
 
-The GoF book describes Strategy with three roles: a **Strategy** interface,
-a set of **ConcreteStrategy** implementations, and a **Context** (sometimes
-called the Client) that holds a Strategy reference and delegates to it.
+The GoF book describes Strategy with three roles: a Strategy interface,
+concrete implementations, and a Client that holds a Strategy reference
+and delegates to it.
 
-The mapping:
+- **Strategy:** `IOutputStrategy` in `src/output/interfaces.py`. Three
+  methods: `open` / `write` / `close`, plus a default `write_all` that
+  runs the lifecycle over an iterable.
+- **ConcreteStrategy:** `ConsoleOutputStrategy`, `KafkaOutputStrategy`,
+  `RedisOutputStrategy`. Each knows exactly one destination protocol.
+- **Client:** `main()` in `src/main.py`. Holds an `IOutputStrategy`
+  reference, never inspects the concrete type. You can verify by grepping
+  `main.py` for the concrete class names — there are zero matches.
 
-`IOutputStrategy` in `src/output/interfaces.py` is the **Strategy** role.
-It declares three methods — `open`, `write`, `close` — plus a default
-`write_all` that runs the lifecycle over an iterable of events.
+## Real Kafka and Redis
 
-`ConsoleOutputStrategy`, `FileOutputStrategy`, `KafkaOutputStrategy`,
-`RedisOutputStrategy` (each in its own file under `src/output/strategies/`)
-are the four **ConcreteStrategy** classes. Each one knows exactly one
-destination protocol — `print` to stdout, `open()` and `write()` for
-files, `KafkaProducer.send()` for Kafka, `redis.rpush()`/`xadd()`/`hset()`
-for Redis. They share nothing except the interface they implement.
-
-`main.py` is the **Client/Context**. It receives a strategy from the
-factory, calls `write_all()` on it, and never looks inside the object.
-Crucially, the file imports `IOutputStrategy` and the factory function
-— but no concrete strategy class. You can verify this by grepping
-`main.py` for the four concrete strategy class names: there are zero
-matches.
-
-## Config-driven swapping
-
-When the program starts it loads `config.yaml`, finds the
-`output.strategy` field, and passes the parsed config dict to
-`build_output_strategy(...)` in the factory. The factory does a tiny
-match on the strategy name and returns a fully-configured concrete
-instance. The rest of the program never sees the concrete type.
-
-Walking through the swap mechanics: changing `console` to `kafka`
-in the config causes the factory to instantiate `KafkaOutputStrategy`
-instead of `ConsoleOutputStrategy`. The `main()` function, the reader,
-the model dataclass — none of those notice. They keep calling the
-same three methods on whatever object the factory returned. The
-event loop in `IOutputStrategy.write_all` runs unchanged. That's
-the payoff of the pattern: a behaviour change that touches only
-configuration.
-
-## Dry-run mode
-
-The Kafka and Redis strategies each accept a `dry_run` flag in their
-constructor. When true:
-
-- `open()` prints a one-line "would connect to …" notice and skips
-  the actual broker handshake. The kafka-python / redis libraries
-  are never imported, so the program runs even on a machine that
-  doesn't have them installed.
-- `write()` prints the exact command that would be issued — the
-  Kafka topic + key + JSON payload, or the Redis command
-  (`RPUSH …`, `XADD …`, or `HSET …` depending on `mode`).
-- `close()` reports the total count.
-
-## Running against real Kafka and Redis
-
-The included `docker-compose.yml` brings up a single-node Redis
-and a single-node Kafka in KRaft mode (no separate Zookeeper):
+The Kafka and Redis strategies are real client code — `KafkaProducer.send()`
+and `redis.rpush()` respectively. To run against real services you need a
+broker reachable on the configured host:port. Locally:
 
 ```bash
-docker compose up -d
+# Redis
+redis-server --daemonize yes --port 6379
+
+# Kafka (single-node KRaft mode via Docker)
+docker run -d --name kafka -p 9092:9092 \
+  -e KAFKA_CFG_NODE_ID=0 \
+  -e KAFKA_CFG_PROCESS_ROLES=controller,broker \
+  -e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093 \
+  -e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+  -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  -e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  -e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT \
+  -e KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+  bitnami/kafka:3.7
 ```
 
-Then in `config.yaml` set:
+Then in `config.yaml` set `output.strategy: redis` (or `kafka`) and run.
 
-```yaml
-output:
-  strategy: redis           # or kafka
-  dry_run: false
-```
+## Defence Q&A
 
-Run the program. For Redis you can verify the writes with
-`redis-cli LLEN storm-events` (or `XLEN` if `mode: stream`).
-For Kafka you can use the bundled console consumer:
+*"Where exactly is the Strategy pattern?"* — `IOutputStrategy` in
+`src/output/interfaces.py` is the abstract Strategy role; the three
+concrete classes in `src/output/strategies/` implement it; `main()`
+in `src/main.py` is the Client that holds an `IOutputStrategy`
+reference without knowing the concrete type.
 
-```bash
-docker exec -it lab4-kafka kafka-console-consumer.sh \
-    --bootstrap-server localhost:9092 \
-    --topic storm-events --from-beginning
-```
+*"How do you switch from console to Kafka?"* — Edit
+`output.strategy: console` to `output.strategy: kafka` in `config.yaml`.
+Re-run. No code changes.
 
-This was tested end-to-end during development — 50 sample events
-written through the Redis strategy and then read back via
-`redis-cli` confirmed the round trip.
+*"What does the reader know about the output?"* — Nothing.
+`src/reader/` has no imports from `src/output/`.
 
+*"How would you add PostgreSQL as a fourth destination?"* — Three
+changes: write `PostgresOutputStrategy` implementing `IOutputStrategy`,
+add a branch in `factory.py`, add a `postgres:` block in `config.yaml`.
+Nothing else changes.
+
+*"Why three lifecycle methods instead of one `write_all`?"* — Real sinks
+have setup/teardown (Kafka producer, Redis connection, file handle).
+Splitting `open` / `write` / `close` makes the lifecycle explicit. The
+default `write_all` wrapper exists for callers that just want one call.
