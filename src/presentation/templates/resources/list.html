@@ -5,9 +5,15 @@
 <header class="page-head">
   <div class="breadcrumb"><a href="{{ url_for('home.index') }}">Dashboard</a> · Resources</div>
   <h1 class="page-title">Resources <span class="count-badge">{{ resources|length }}</span></h1>
-  <p class="page-sub">Organization-wide pool of people, materials and cost items that can be assigned to tasks.</p>
+  <p class="page-sub">Organisation-wide pool of people, materials and cost items that can be assigned to tasks.</p>
+
+  <div class="toolbar">
+    <span class="muted">Three subtypes: <em>Human</em>, <em>Material</em>, <em>Cost</em>. Pick the type when creating; it's locked afterwards.</span>
+    <a class="btn btn-primary" href="{{ url_for('resources.new_resource_form') }}">+ New resource</a>
+  </div>
 </header>
 
+{% if resources %}
 <div class="data-card">
   <table class="data-table">
     <thead>
@@ -18,6 +24,7 @@
         <th class="num">Cost / hr</th>
         <th class="num">Max units</th>
         <th>Detail</th>
+        <th class="actions"></th>
       </tr>
     </thead>
     <tbody>
@@ -36,9 +43,22 @@
             {% if r.unit %}{{ r.unit }}{% endif %}
             {% if r.fixed_cost %}fixed {{ r.fixed_cost|money }}{% endif %}
           </td>
+          <td class="actions">
+            <a class="btn btn-text" href="{{ url_for('resources.edit_resource_form', resource_id=r.id) }}">Edit</a>
+            <form class="inline-form" method="post" action="{{ url_for('resources.delete_resource', resource_id=r.id) }}"
+                  onsubmit="return confirm('Delete resource {{ r.name|e }}? Any assignments referencing it will also be removed.');">
+              <button class="btn btn-text btn-danger" type="submit">Delete</button>
+            </form>
+          </td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% else %}
+  <div class="empty">
+    <p>No resources yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('resources.new_resource_form') }}">Create the first resource</a>
+  </div>
+{% endif %}
 {% endblock %}

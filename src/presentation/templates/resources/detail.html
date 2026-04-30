@@ -8,8 +8,20 @@
     <a href="{{ url_for('resources.list_resources') }}">Resources</a> ·
     {{ resource.name }}
   </div>
-  <h1 class="page-title">{{ resource.name }}</h1>
-  <p class="page-sub">{{ resource.resource_type|resource_type_label }} · {{ resource.code }}</p>
+
+  <div class="detail-head">
+    <div>
+      <h1 class="page-title">{{ resource.name }}</h1>
+      <p class="page-sub">{{ resource.resource_type|resource_type_label }} · {{ resource.code }}</p>
+    </div>
+    <div class="detail-actions">
+      <a class="btn btn-ghost" href="{{ url_for('resources.edit_resource_form', resource_id=resource.id) }}">Edit resource</a>
+      <form class="inline-form" method="post" action="{{ url_for('resources.delete_resource', resource_id=resource.id) }}"
+            onsubmit="return confirm('Delete this resource? Any assignments referencing it will also be removed.');">
+        <button class="btn btn-ghost btn-danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
 </header>
 
 <section class="meta-grid">
