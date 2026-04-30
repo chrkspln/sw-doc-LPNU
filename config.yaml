@@ -2,44 +2,21 @@
 # Lab 4 — Strategy pattern configuration
 # ------------------------------------------------------------------------------
 # To switch the output destination, change ONE line below: `output.strategy`.
-# No code changes are required to switch between console / file / kafka / redis.
+# No code changes are required to switch between console / kafka / redis.
 # ==============================================================================
 
 input:
-  file: data/storm_events.csv
-  limit: 50              # how many records to process; null for all
+  file: data/sample.csv.gz
 
 output:
-  # ------------------------------------------------------------------ swap me
-  strategy: console      # one of: console | file | kafka | redis
-  # -------------------------------------------------------------------------
-
-  # When true, kafka/redis strategies LOG what they would send instead of
-  # actually connecting to a broker. Lets you demo the pattern without
-  # standing up Kafka or Redis. Set to false when running real services
-  # (e.g. via the provided docker-compose.yml).
-  dry_run: true
-
-  # Per-strategy options below. Only the section matching `strategy` is used.
-
-  console:
-    format: pretty       # pretty | json | csv
-    color: true          # colorize the pretty output
-
-  file:
-    path: data/output.jsonl
-    format: jsonl        # jsonl | csv | json
+  strategy: console     # one of: console | kafka | redis
 
   kafka:
     bootstrap_servers: ["localhost:9092"]
     topic: storm-events
-    key_field: event_id  # which StormEvent field to use as the message key
-    acks: 1
-    client_id: lab4-producer
 
   redis:
     host: localhost
     port: 6379
     db: 0
-    mode: list           # list | stream | hash
-    key: storm-events    # list/stream key, or hash-key prefix when mode=hash
+    key: storm-events
