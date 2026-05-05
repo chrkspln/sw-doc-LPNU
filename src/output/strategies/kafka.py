@@ -1,9 +1,8 @@
 """
 Kafka output strategy.
 
-Publishes each event as a JSON message to a Kafka topic, keyed by event_id
-so records for the same event are routed to the same partition. Requires
-a running Kafka broker on the configured `bootstrap_servers`.
+Publishes each record as a JSON message to a Kafka topic. Requires a
+running Kafka broker on the configured `bootstrap_servers`.
 """
 from __future__ import annotations
 
@@ -11,7 +10,6 @@ import json
 import logging
 from typing import Any, List
 
-from ...reader.models import StormEvent
 from ..interfaces import IOutputStrategy
 
 logger = logging.getLogger(__name__)
@@ -30,8 +28,7 @@ class KafkaOutputStrategy(IOutputStrategy):
             from kafka import KafkaProducer
         except ImportError as e:
             raise RuntimeError(
-                "kafka-python-ng is not installed. "
-                "Run: pip install kafka-python-ng"
+                "kafka-python-ng is not installed. Run: pip install kafka-python-ng"
             ) from e
 
         logger.info("Connecting to Kafka %s, topic=%s",
@@ -39,12 +36,10 @@ class KafkaOutputStrategy(IOutputStrategy):
         self._producer = KafkaProducer(
             bootstrap_servers=self._bootstrap_servers,
             value_serializer=lambda v: json.dumps(v, ensure_ascii=False).encode("utf-8"),
-            key_serializer=lambda k: k.encode("utf-8") if k else None,
         )
 
-    def write(self, event: StormEvent) -> None:
-        payload = event.to_dict()
-        self._producer.send(self._topic, key=event.event_id, value=payload)
+    def write(self, record) -> None:
+        self._producer.send(self._topic, value=record.to_dict())
 
     def close(self) -> None:
         if self._producer is not None:
