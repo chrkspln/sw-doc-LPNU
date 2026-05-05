@@ -11,12 +11,17 @@ from typing import Dict
 
 from .interfaces import IOutputStrategy
 from .strategies.console import ConsoleOutputStrategy
+from .strategies.file import FileOutputStrategy
 from .strategies.kafka import KafkaOutputStrategy
 from .strategies.redis import RedisOutputStrategy
 
 
 def build_output_strategy(output_cfg: Dict) -> IOutputStrategy:
-    name = (output_cfg.get("strategy") or "console").lower().strip()
+    name = (output_cfg.get("strategy") or "file").lower().strip()
+
+    if name == "file":
+        cfg = output_cfg.get("file") or {}
+        return FileOutputStrategy(path=cfg.get("path", "data/output.jsonl"))
 
     if name == "console":
         return ConsoleOutputStrategy()
@@ -42,5 +47,5 @@ def build_output_strategy(output_cfg: Dict) -> IOutputStrategy:
 
     raise ValueError(
         f"Unknown output.strategy {name!r}. "
-        f"Expected one of: console, kafka, redis."
+        f"Expected one of: file, console, kafka, redis."
     )
