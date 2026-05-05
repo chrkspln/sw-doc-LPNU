@@ -1,41 +1,30 @@
 # Lab 4 — Strategy Pattern over the NCDC Storm Events Dataset
 
 A Python application that reads weather-event records from the NCDC
-Storm Events Database (variant 27) and writes them to one of three
-storage destinations: the console, Apache Kafka, or Redis. Switching
-destinations happens entirely in `config.yaml` — no code changes.
+Storm Events Database (variant 27) and writes them to a file by default,
+with the option to swap the output destination to the console, Apache
+Kafka, or Redis. Switching destinations happens entirely in `config.yaml`
+— no code changes.
 
 ## What the lab requires
 
-1. Read data from the variant dataset and write it to a file.
-2. Use the Strategy pattern to swap output destinations.
-3. The reading code must be separated from the output code.
-4. The console output must be organised using the Strategy pattern, and
-   must allow switching to Kafka or Redis with minimal changes — through
-   configuration files, not code edits.
+The lab text has four sentences. Each maps directly onto code:
 
-## How those requirements map to the code
-
-**Reading is in `src/reader/`.** It produces an iterator of `StormEvent`
-objects from a real NCDC bulk CSV (the same `.csv.gz` files NCEI publishes
-monthly) and stops there. It has no imports from `src/output/`.
-
-**Writing is in `src/output/`.** `IOutputStrategy` is the abstract role.
-`ConsoleOutputStrategy`, `KafkaOutputStrategy`, and `RedisOutputStrategy`
-are the three concrete implementations. They share nothing except the
-interface they implement, and they have no imports from `src/reader/`.
-
-**`src/main.py` is the Client.** It loads `config.yaml`, asks the factory
-for a strategy by name, and calls `write_all` on whatever object it
-gets back. It never imports any concrete strategy class.
-
-**Switching happens in `config.yaml`.** Edit `output.strategy` from
-`console` to `kafka` or `redis`. The factory in `src/output/factory.py`
-is the one place where the config string meets the concrete classes.
-
-There are no CLI flags that override the config. The only way to swap
-strategies is to edit the config file, because that's what the lab asks
-for.
+1. **"Read data from the variant dataset and write it to a file."** —
+   This is the base task. The default strategy in `config.yaml` is
+   `file`, which writes events as JSON lines to `data/output.jsonl`.
+2. **"Apply the Strategy pattern for output to different storages."** —
+   `IOutputStrategy` is the abstract role; `FileOutputStrategy`,
+   `ConsoleOutputStrategy`, `KafkaOutputStrategy`, and
+   `RedisOutputStrategy` are the concrete implementations.
+3. **"The console-output code must be separated from the file-reading
+   code."** — `src/reader/` produces `StormEvent` objects and has zero
+   imports from `src/output/`. The two sides meet only in `main.py`.
+4. **"The console output must be organised using the Strategy pattern,
+   and must allow switching to Kafka or Redis with minimal changes —
+   through configuration files, not code edits."** — `output.strategy`
+   in `config.yaml` is the single swap point. There are no CLI flags
+   that override it.
 
 ## How to run it
 
@@ -44,9 +33,8 @@ pip install -r requirements.txt
 python -m src.main
 ```
 
-The bundled `data/sample.csv.gz` is a 5-row file in real NCDC bulk format
-(same 51 columns, same `MM/DD/YYYY hh:mm:ss` datetime format) — it lets
-you exercise the pipeline offline.
+By default this reads `data/sample.csv.gz` (a 5-row file in real NCDC
+bulk format) and writes `data/output.jsonl`.
 
 To run against a real NCDC file:
 
@@ -60,7 +48,7 @@ To switch the output destination, edit `config.yaml`:
 
 ```yaml
 output:
-  strategy: console     # or: kafka | redis
+  strategy: file        # or: console | kafka | redis
 ```
 
 Re-run `python -m src.main`. No code edits.
@@ -88,6 +76,7 @@ lab4/
         ├── interfaces.py             ← IOutputStrategy ← THE GoF Strategy
         ├── factory.py                ← config string → concrete strategy
         └── strategies/
+            ├── file.py               ← default per spec
             ├── console.py
             ├── kafka.py
             └── redis.py
@@ -102,17 +91,19 @@ and delegates to it.
 - **Strategy:** `IOutputStrategy` in `src/output/interfaces.py`. Three
   methods: `open` / `write` / `close`, plus a default `write_all` that
   runs the lifecycle over an iterable.
-- **ConcreteStrategy:** `ConsoleOutputStrategy`, `KafkaOutputStrategy`,
-  `RedisOutputStrategy`. Each knows exactly one destination protocol.
+- **ConcreteStrategy:** `FileOutputStrategy`, `ConsoleOutputStrategy`,
+  `KafkaOutputStrategy`, `RedisOutputStrategy`. Each knows exactly one
+  destination protocol.
 - **Client:** `main()` in `src/main.py`. Holds an `IOutputStrategy`
-  reference, never inspects the concrete type. You can verify by grepping
-  `main.py` for the concrete class names — there are zero matches.
+  reference, never inspects the concrete type. You can verify by
+  grepping `main.py` for the concrete class names — there are zero
+  matches.
 
 ## Real Kafka and Redis
 
 The Kafka and Redis strategies are real client code — `KafkaProducer.send()`
-and `redis.rpush()` respectively. To run against real services you need a
-broker reachable on the configured host:port. Locally:
+and `redis.rpush()` respectively. To run against real services you need
+a broker reachable on the configured host:port:
 
 ```bash
 # Redis
@@ -136,24 +127,30 @@ Then in `config.yaml` set `output.strategy: redis` (or `kafka`) and run.
 ## Defence Q&A
 
 *"Where exactly is the Strategy pattern?"* — `IOutputStrategy` in
-`src/output/interfaces.py` is the abstract Strategy role; the three
+`src/output/interfaces.py` is the abstract Strategy role; the four
 concrete classes in `src/output/strategies/` implement it; `main()`
 in `src/main.py` is the Client that holds an `IOutputStrategy`
 reference without knowing the concrete type.
 
-*"How do you switch from console to Kafka?"* — Edit
-`output.strategy: console` to `output.strategy: kafka` in `config.yaml`.
+*"Why is `file` the default and not `console`?"* — Because the lab
+text starts with "read data from the dataset and write it to a file".
+The Strategy pattern is the second requirement, layered on top of
+the file-write base case.
+
+*"How do you switch from file to Kafka?"* — Edit
+`output.strategy: file` to `output.strategy: kafka` in `config.yaml`.
 Re-run. No code changes.
 
 *"What does the reader know about the output?"* — Nothing.
 `src/reader/` has no imports from `src/output/`.
 
-*"How would you add PostgreSQL as a fourth destination?"* — Three
+*"How would you add PostgreSQL as a fifth destination?"* — Three
 changes: write `PostgresOutputStrategy` implementing `IOutputStrategy`,
 add a branch in `factory.py`, add a `postgres:` block in `config.yaml`.
 Nothing else changes.
 
-*"Why three lifecycle methods instead of one `write_all`?"* — Real sinks
-have setup/teardown (Kafka producer, Redis connection, file handle).
-Splitting `open` / `write` / `close` makes the lifecycle explicit. The
-default `write_all` wrapper exists for callers that just want one call.
+*"Why three lifecycle methods instead of one `write_all`?"* — Real
+sinks have setup/teardown (Kafka producer, Redis connection, file
+handle). Splitting `open` / `write` / `close` makes the lifecycle
+explicit. The default `write_all` wrapper exists for callers that just
+want one call.

@@ -2,14 +2,17 @@
 # Lab 4 — Strategy pattern configuration
 # ------------------------------------------------------------------------------
 # To switch the output destination, change ONE line below: `output.strategy`.
-# No code changes are required to switch between console / kafka / redis.
+# No code changes are required to switch between file / console / kafka / redis.
 # ==============================================================================
 
 input:
   file: data/sample.csv.gz
 
 output:
-  strategy: console     # one of: console | kafka | redis
+  strategy: file        # one of: file | console | kafka | redis
+
+  file:
+    path: data/output.jsonl
 
   kafka:
     bootstrap_servers: ["localhost:9092"]
