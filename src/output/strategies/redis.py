@@ -1,7 +1,7 @@
 """
 Redis output strategy.
 
-Publishes each event as a JSON string to a Redis list (`RPUSH`).
+Publishes each record as a JSON string to a Redis list (`RPUSH`).
 Requires a running Redis server on the configured host:port.
 """
 from __future__ import annotations
@@ -10,7 +10,6 @@ import json
 import logging
 from typing import Any
 
-from ...reader.models import StormEvent
 from ..interfaces import IOutputStrategy
 
 logger = logging.getLogger(__name__)
@@ -40,9 +39,8 @@ class RedisOutputStrategy(IOutputStrategy):
                                    db=self._db, decode_responses=False)
         self._client.ping()
 
-    def write(self, event: StormEvent) -> None:
-        payload = event.to_dict()
-        self._client.rpush(self._key, json.dumps(payload, ensure_ascii=False))
+    def write(self, record) -> None:
+        self._client.rpush(self._key, json.dumps(record.to_dict(), ensure_ascii=False))
 
     def close(self) -> None:
         if self._client is not None:

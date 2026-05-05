@@ -16,15 +16,26 @@ Lifecycle:
     close()  ─┘   flush, close, release resources
 
 `write_all` is a convenience wrapper that runs the full lifecycle for
-an iterable of events. Subclasses can override it for batch optimization
-(e.g. a Kafka producer that wants `producer.flush()` only at the end).
+an iterable of records.
+
+A "record" here is any object that exposes a `.to_dict() -> dict`
+method. Two such records exist in this project:
+
+    - StormEvent (NCDC weather-event use case)
+    - Event      (Lab 3 audit-log use case)
+
+Strategies do not depend on either concrete class — they just call
+`.to_dict()` and serialize the result. Adding a third record type
+later wouldn't require changes to any strategy.
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from typing import Any, Iterable, Protocol
 
-from ..reader.models import StormEvent
+
+class _HasToDict(Protocol):
+    def to_dict(self) -> dict: ...
 
 
 class IOutputStrategy(ABC):
@@ -37,26 +48,24 @@ class IOutputStrategy(ABC):
         """Establish the connection / open the file / prepare the producer."""
 
     @abstractmethod
-    def write(self, event: StormEvent) -> None:
-        """Send one event to the underlying sink."""
+    def write(self, record: _HasToDict) -> None:
+        """Send one record to the underlying sink."""
 
     @abstractmethod
     def close(self) -> None:
         """Flush and release any resources held by the strategy."""
 
     # ------------------------------------------------------------------ #
-    def write_all(self, events: Iterable[StormEvent]) -> int:
-        """Run the full lifecycle over an iterable of events.
+    def write_all(self, records: Iterable[_HasToDict]) -> int:
+        """Run the full lifecycle over an iterable of records.
 
-        Returns the number of events written. Subclasses can override
-        for batch behaviour, but the default implementation is correct
-        for any well-formed strategy.
+        Returns the number of records written.
         """
         self.open()
         count = 0
         try:
-            for ev in events:
-                self.write(ev)
+            for r in records:
+                self.write(r)
                 count += 1
         finally:
             self.close()
