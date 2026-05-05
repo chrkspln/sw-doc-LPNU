@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="eyebrow">Overview</div>
+  <h1 class="page-title">Project planning <em>at a glance.</em></h1>
+  <p class="page-sub">Aggregate metrics across every project, task, and resource currently in the system.</p>
+</header>
+
+<section class="stat-grid">
+  <article class="stat-card">
+    <span class="stat-label">Projects</span>
+    <span class="stat-number">{{ stats.total_projects }}</span>
+    <ul class="stat-breakdown">
+      {% for status, count in stats.projects_by_status.items() %}
+        <li><span class="dot dot-{{ status|lower }}"></span> {{ status }} <strong>{{ count }}</strong></li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="stat-card">
+    <span class="stat-label">Tasks</span>
+    <span class="stat-number">{{ stats.total_tasks }}</span>
+    <ul class="stat-breakdown">
+      {% for tt, count in stats.tasks_by_type.items() %}
+        <li><span class="dot dot-task"></span> {{ tt|task_type_label }} <strong>{{ count }}</strong></li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="stat-card">
+    <span class="stat-label">Resources</span>
+    <span class="stat-number">{{ stats.total_resources }}</span>
+    <ul class="stat-breakdown">
+      {% for rt, count in stats.resources_by_type.items() %}
+        <li><span class="dot dot-res"></span> {{ rt|resource_type_label }} <strong>{{ count }}</strong></li>
+      {% endfor %}
+    </ul>
+  </article>
+
+  <article class="stat-card">
+    <span class="stat-label">Assignments</span>
+    <span class="stat-number">{{ stats.total_assignments }}</span>
+    <ul class="stat-breakdown">
+      <li><span class="dot dot-link"></span> Task ↔ Resource bindings</li>
+    </ul>
+  </article>
+</section>
+
+<section class="cta-row">
+  <a class="btn btn-primary" href="{{ url_for('projects.list_projects') }}">Browse projects →</a>
+  <a class="btn btn-ghost" href="{{ url_for('projects.new_project_form') }}">+ New project</a>
+</section>
+{% endblock %}

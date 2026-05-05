@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ detail.project.name }}{% endblock %}
+
+{% block content %}
+<header class="page-head">
+  <div class="breadcrumb">
+    <a href="{{ url_for('home.index') }}">Dashboard</a> ·
+    <a href="{{ url_for('projects.list_projects') }}">Projects</a> ·
+    {{ detail.project.name }}
+  </div>
+
+  <div class="detail-head">
+    <div>
+      <h1 class="page-title">{{ detail.project.name }}</h1>
+      {% if detail.project.description %}
+        <p class="page-sub">{{ detail.project.description }}</p>
+      {% endif %}
+    </div>
+    <div class="detail-actions">
+      <a class="btn btn-ghost" href="{{ url_for('projects.edit_project_form', project_id=detail.project.id) }}">Edit project</a>
+      <form class="inline-form" method="post" action="{{ url_for('projects.delete_project', project_id=detail.project.id) }}"
+            onsubmit="return confirm('Delete this project and all its tasks?');">
+        <button class="btn btn-ghost btn-danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
+</header>
+
+<section class="meta-grid">
+  <div class="meta-cell"><span class="meta-key">Status</span>
+    <span class="pill {{ detail.project.status|status_class }}">{{ detail.project.status }}</span>
+  </div>
+  <div class="meta-cell"><span class="meta-key">Start</span>
+    <span class="mono">{{ detail.project.start_date.isoformat() if detail.project.start_date else '—' }}</span>
+  </div>
+  <div class="meta-cell"><span class="meta-key">End</span>
+    <span class="mono">{{ detail.project.end_date.isoformat() if detail.project.end_date else '—' }}</span>
+  </div>
+  <div class="meta-cell"><span class="meta-key">External ID</span>
+    <span class="mono">{{ detail.project.ext_id or '—' }}</span>
+  </div>
+  <div class="meta-cell"><span class="meta-key">Tasks</span>
+    <span class="big-num">{{ detail.project.task_count }}</span>
+  </div>
+  <div class="meta-cell"><span class="meta-key">Assignments</span>
+    <span class="big-num">{{ detail.project.assignment_count }}</span>
+  </div>
+</section>
+
+<section class="section">
+  <header class="section-head">
+    <h2 class="section-title">Tasks <span class="count-badge">{{ tasks|length }}</span></h2>
+    <a class="btn btn-primary" href="{{ url_for('tasks.new_task_form', project_id=detail.project.id) }}">+ Add task</a>
+  </header>
+
+  {% if tasks %}
+  <div class="data-card">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="col-name">Name</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th class="num">Duration (d)</th>
+          <th class="num">Work (h)</th>
+          <th class="num">Progress</th>
+          <th class="num">Priority</th>
+          <th>Critical</th>
+          <th class="actions"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in tasks %}
+          <tr class="{% if t.task_type == 'SUMMARY_TASK' %}row-summary{% endif %}">
+            <td class="col-name">
+              <span class="row-title">{{ t.name }}</span>
+              {% if t.ext_id %}<span class="row-ext">{{ t.ext_id }}</span>{% endif %}
+            </td>
+            <td><span class="tag tag-{{ t.task_type|lower }}">{{ t.task_type|task_type_label }}</span></td>
+            <td><span class="pill {{ t.status|status_class }}">{{ t.status }}</span></td>
+            <td class="num mono">{{ t.duration }}</td>
+            <td class="num mono">{{ t.work }}</td>
+            <td class="num mono">
+              <div class="progress-cell">
+                <div class="progress-bar"><div class="progress-fill" style="width: {{ (t.percent_complete * 100)|round }}%"></div></div>
+                <span>{{ t.percent_complete|percent }}</span>
+              </div>
+            </td>
+            <td class="num mono">{{ t.priority }}</td>
+            <td>{% if t.is_critical %}<span class="critical-mark">●</span>{% else %}—{% endif %}</td>
+            <td class="actions">
+              <a class="btn btn-text" href="{{ url_for('tasks.edit_task_form', task_id=t.id) }}">Edit</a>
+              <form class="inline-form" method="post" action="{{ url_for('tasks.delete_task', task_id=t.id) }}"
+                    onsubmit="return confirm('Delete task {{ t.name|e }}?');">
+                <button class="btn btn-text btn-danger" type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty">
+      <p>No tasks yet.</p>
+      <a class="btn btn-primary" href="{{ url_for('tasks.new_task_form', project_id=detail.project.id) }}">Add the first task</a>
+    </div>
+  {% endif %}
+</section>
+
+{% if detail.assignments %}
+<section class="section">
+  <header class="section-head">
+    <h2 class="section-title">Assignments <span class="count-badge">{{ detail.assignments|length }}</span></h2>
+  </header>
+  <div class="data-card">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Resource</th>
+          <th class="num">Units</th>
+          <th class="num">Work (h)</th>
+          <th class="num">Actual (h)</th>
+          <th class="num">Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in detail.assignments %}
+          <tr>
+            <td>{{ a.task_name }}</td>
+            <td>{{ a.resource_name }}</td>
+            <td class="num mono">{{ "%.2f"|format(a.units) }}</td>
+            <td class="num mono">{{ a.work }}</td>
+            <td class="num mono">{{ a.actual_work }}</td>
+            <td class="num mono">{{ a.cost|money }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
