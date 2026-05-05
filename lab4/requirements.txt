@@ -1,0 +1,4 @@
+PyYAML>=6.0
+kafka-python-ng>=2.2.0
+redis>=5.0.0
+firebase-admin>=7.0.0

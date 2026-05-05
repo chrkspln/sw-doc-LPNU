@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
-from ...bll.interfaces import IProjectService, ITaskService
+from ...bll.interfaces import IEventPublisher, IProjectService, ITaskService
 
 TASK_TYPES = ["TASK", "MILESTONE", "SUMMARY_TASK"]
 TASK_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "ON_HOLD"]
@@ -21,6 +21,7 @@ TASK_STATUSES = ["NOT_STARTED", "IN_PROGRESS", "COMPLETED", "ON_HOLD"]
 def create_tasks_blueprint(
     task_service: ITaskService,
     project_service: IProjectService,
+    event_publisher: IEventPublisher,
 ) -> Blueprint:
     bp = Blueprint("tasks", __name__)
 
@@ -71,6 +72,13 @@ def create_tasks_blueprint(
             is_critical=bool(request.form.get("is_critical")),
             parent_id=parent_id,
         )
+        event_publisher.publish(
+            action="task.create",
+            entity_type="task",
+            entity_id=task.id,
+            details={"name": task.name, "task_type": task.task_type,
+                     "project_id": project_id},
+        )
         flash(f"Task '{task.name}' added.", "success")
         return redirect(url_for("projects.show_project", project_id=project_id))
 
@@ -120,6 +128,13 @@ def create_tasks_blueprint(
         )
         if updated is None:
             abort(404)
+        event_publisher.publish(
+            action="task.update",
+            entity_type="task",
+            entity_id=updated.id,
+            details={"name": updated.name, "status": updated.status,
+                     "percent_complete": updated.percent_complete},
+        )
         flash(f"Task '{updated.name}' updated.", "success")
         return redirect(url_for("projects.show_project", project_id=updated.project_id))
 
@@ -130,6 +145,12 @@ def create_tasks_blueprint(
             abort(404)
         project_id = task.project_id
         task_service.delete_task(task_id)
+        event_publisher.publish(
+            action="task.delete",
+            entity_type="task",
+            entity_id=task_id,
+            details={"project_id": project_id},
+        )
         flash("Task deleted.", "success")
         return redirect(url_for("projects.show_project", project_id=project_id))
 

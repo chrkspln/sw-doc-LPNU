@@ -51,10 +51,36 @@ def cmd_import(args: argparse.Namespace) -> int:
 
 
 def cmd_web(args: argparse.Namespace) -> int:
-    container = Container(db_url=args.db)
+    import os
+
+    # Optional: load .env file if python-dotenv is available
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+
+    # Provide the publisher with the email of whoever is logged in for
+    # this request. The Flask session is the source of truth.
+    def _session_user_provider() -> str:
+        try:
+            from flask import session, has_request_context
+            if has_request_context():
+                return session.get("email") or "anonymous"
+        except Exception:
+            pass
+        return "anonymous"
+
+    container = Container(
+        db_url=args.db,
+        lab4_dir=os.environ.get("LAB4_DIR"),
+        lab4_config=os.environ.get("LAB4_CONFIG", "config.yaml"),
+        user_provider=_session_user_provider,
+    )
     app = create_app(container)
     print(f"Starting web server at http://{args.host}:{args.port}")
     print(f"Database: {args.db}")
+    print(f"Lab 4 integration: {'enabled' if os.environ.get('LAB4_DIR') else 'disabled (set LAB4_DIR)'}")
     app.run(host=args.host, port=args.port, debug=args.debug, use_reloader=False)
     return 0
 

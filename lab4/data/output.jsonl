@@ -1,0 +1,3 @@
+{"timestamp": "2026-05-05T14:21:20.385545+00:00", "action": "resource.update", "entity_type": "resource", "entity_id": "52", "user": "polina.cherkasova06@gmail.com", "details": {"name": "Bandwidth", "resource_type": "MATERIAL_RESOURCE"}}
+{"timestamp": "2026-05-05T14:23:22.140184+00:00", "action": "resource.delete", "entity_type": "resource", "entity_id": "52", "user": "polina.cherkasova06@gmail.com", "details": {}}
+{"timestamp": "2026-05-05T14:23:44.915221+00:00", "action": "resource.update", "entity_type": "resource", "entity_id": "46", "user": "polina.cherkasova06@gmail.com", "details": {"name": "Build Minutes #6", "resource_type": "MATERIAL_RESOURCE"}}
