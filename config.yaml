@@ -1,0 +1,38 @@
+# ==============================================================================
+# Lab 4 — Strategy pattern configuration
+# ------------------------------------------------------------------------------
+# Two switchable axes:
+#   1. input.mode      — what data comes in (csv | event)
+#   2. output.strategy — where it goes (file | console | kafka | redis | firestore)
+#
+# Change either through this file alone — no code edits.
+# ==============================================================================
+
+input:
+  # mode=csv:    read NCDC Storm Events CSV (original Lab 4 use case)
+  # mode=event:  read one JSON event from stdin (Lab 3 audit-log use case)
+  mode: event
+  file: data/sample.csv.gz   # only used when mode=csv
+
+output:
+  strategy: file        # one of: file | console | kafka | redis | firestore
+
+  file:
+    path: data/output.jsonl
+
+  kafka:
+    bootstrap_servers: ["localhost:9092"]
+    topic: storm-events
+
+  redis:
+    host: localhost
+    port: 6379
+    db: 0
+    key: storm-events
+
+  firestore:
+    # Path to the Firebase Admin SDK service-account JSON. To avoid putting
+    # the path in this file, prefix it with "$" and the rest will be read
+    # from an environment variable (e.g. "$FIREBASE_SERVICE_ACCOUNT").
+    credentials_path: $FIREBASE_SERVICE_ACCOUNT
+    collection: events
