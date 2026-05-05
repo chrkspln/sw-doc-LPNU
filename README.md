@@ -6,10 +6,6 @@ with the option to swap the output destination to the console, Apache
 Kafka, or Redis. Switching destinations happens entirely in `config.yaml`
 — no code changes.
 
-## What the lab requires
-
-The lab text has four sentences. Each maps directly onto code:
-
 1. **"Read data from the variant dataset and write it to a file."** —
    This is the base task. The default strategy in `config.yaml` is
    `file`, which writes events as JSON lines to `data/output.jsonl`.
@@ -99,7 +95,7 @@ and delegates to it.
   grepping `main.py` for the concrete class names — there are zero
   matches.
 
-## Real Kafka and Redis
+## Kafka and Redis
 
 The Kafka and Redis strategies are real client code — `KafkaProducer.send()`
 and `redis.rpush()` respectively. To run against real services you need
@@ -124,33 +120,3 @@ docker run -d --name kafka -p 9092:9092 \
 
 Then in `config.yaml` set `output.strategy: redis` (or `kafka`) and run.
 
-## Defence Q&A
-
-*"Where exactly is the Strategy pattern?"* — `IOutputStrategy` in
-`src/output/interfaces.py` is the abstract Strategy role; the four
-concrete classes in `src/output/strategies/` implement it; `main()`
-in `src/main.py` is the Client that holds an `IOutputStrategy`
-reference without knowing the concrete type.
-
-*"Why is `file` the default and not `console`?"* — Because the lab
-text starts with "read data from the dataset and write it to a file".
-The Strategy pattern is the second requirement, layered on top of
-the file-write base case.
-
-*"How do you switch from file to Kafka?"* — Edit
-`output.strategy: file` to `output.strategy: kafka` in `config.yaml`.
-Re-run. No code changes.
-
-*"What does the reader know about the output?"* — Nothing.
-`src/reader/` has no imports from `src/output/`.
-
-*"How would you add PostgreSQL as a fifth destination?"* — Three
-changes: write `PostgresOutputStrategy` implementing `IOutputStrategy`,
-add a branch in `factory.py`, add a `postgres:` block in `config.yaml`.
-Nothing else changes.
-
-*"Why three lifecycle methods instead of one `write_all`?"* — Real
-sinks have setup/teardown (Kafka producer, Redis connection, file
-handle). Splitting `open` / `write` / `close` makes the lifecycle
-explicit. The default `write_all` wrapper exists for callers that just
-want one call.
